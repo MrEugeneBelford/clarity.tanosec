@@ -20,9 +20,11 @@ export const questionCategories: Record<string, QuestionCategory> = {
   endpoint: { name: "Endpoint Security", weight: 0.15 },
   training: { name: "Security Awareness & Training", weight: 0.15 },
   incident: { name: "Incident Response & Recovery", weight: 0.15 },
+  compliance: { name: "Compliance & Risk", weight: 0.05 },
 };
 
 export const questions: Question[] = [
+  // Network Security
   {
     id: "q1",
     category: "network",
@@ -53,6 +55,7 @@ export const questions: Question[] = [
       { text: "We don't allow guest devices", score: 10 },
     ],
   },
+  // Access Control & Authentication
   {
     id: "q4",
     category: "access",
@@ -83,6 +86,7 @@ export const questions: Question[] = [
       { text: "No formal password policy exists", score: 0 },
     ],
   },
+  // Data Protection & Backup
   {
     id: "q7",
     category: "data",
@@ -104,6 +108,17 @@ export const questions: Question[] = [
     ],
   },
   {
+    id: "q15",
+    category: "data",
+    text: "Do you have a data protection policy that staff are aware of?",
+    options: [
+      { text: "Yes, we have a clear policy that is regularly reviewed", score: 10 },
+      { text: "We have a policy, but it may be outdated or not well-known", score: 5 },
+      { text: "No, we do not have a formal policy", score: 0 },
+    ],
+  },
+  // Endpoint Security
+  {
     id: "q9",
     category: "endpoint",
     text: "Do all your computers and devices run up-to-date antivirus or EDR software?",
@@ -123,6 +138,17 @@ export const questions: Question[] = [
       { text: "Updates are rarely or never installed", score: 0 },
     ],
   },
+  {
+    id: "q16",
+    category: "endpoint",
+    text: "Can you track or remotely wipe a lost or stolen laptop or phone?",
+    options: [
+      { text: "Yes, we have Mobile Device Management (MDM) in place", score: 10 },
+      { text: "We can track some devices but cannot wipe them", score: 3 },
+      { text: "No, we have no remote capabilities", score: 0 },
+    ],
+  },
+  // Security Awareness & Training
    {
     id: "q11",
     category: "training",
@@ -144,6 +170,17 @@ export const questions: Question[] = [
     ],
   },
   {
+    id: "q17",
+    category: "training",
+    text: "Are staff encouraged to report suspicious emails or activity?",
+    options: [
+      { text: "Yes, we have a clear process and a positive reporting culture", score: 10 },
+      { text: "Staff can report issues, but there's no formal process", score: 5 },
+      { text: "No, reporting is not actively encouraged", score: 0 },
+    ],
+  },
+  // Incident Response & Recovery
+  {
     id: "q13",
     category: "incident",
     text: "Do you have a cyber incident response plan or know who to call during a breach?",
@@ -154,6 +191,16 @@ export const questions: Question[] = [
     ],
   },
   {
+    id: "q18",
+    category: "incident",
+    text: "Are your systems monitored for unusual or unauthorized activity?",
+    options: [
+      { text: "Yes, we have active monitoring and alerting in place", score: 10 },
+      { text: "We rely on basic system logs only", score: 4 },
+      { text: "No, we do not monitor our systems", score: 0 },
+    ],
+  },
+  {
     id: "q14",
     category: "incident",
     text: "Do you have cyber insurance that covers data breaches and ransomware?",
@@ -161,6 +208,27 @@ export const questions: Question[] = [
       { text: "Yes, we have a comprehensive cyber insurance policy", score: 10 },
       { text: "We have some liability insurance but are unsure if it covers cyber incidents", score: 3 },
       { text: "No, we do not have cyber insurance", score: 0 },
+    ],
+  },
+  // Compliance & Risk
+  {
+    id: "q19",
+    category: "compliance",
+    text: "Are you aware of any legal obligations (e.g., POPIA) regarding data protection?",
+    options: [
+      { text: "Yes, and we have taken steps to comply", score: 10 },
+      { text: "We are aware but haven't taken specific action", score: 4 },
+      { text: "No, we are not aware of our obligations", score: 0 },
+    ],
+  },
+  {
+    id: "q20",
+    category: "compliance",
+    text: "Have you performed a cyber risk assessment in the last 12 months?",
+    options: [
+      { text: "Yes, and we have a plan to address the identified risks", score: 10 },
+      { text: "Yes, but we haven't acted on the findings", score: 5 },
+      { text: "No, we have not performed a risk assessment", score: 0 },
     ],
   },
 ];

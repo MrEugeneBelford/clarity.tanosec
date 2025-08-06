@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Sparkles,
   Laptop,
+  TrendingUp,
+  Target,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   incident: AlertTriangle,
   training: Users,
   endpoint: Laptop,
+  compliance: Target,
 };
 
 export default function CyberGuardSMEPage() {
@@ -89,12 +92,24 @@ export default function CyberGuardSMEPage() {
     setRecommendations([]);
   };
 
-  const { score, maxScore } = useMemo(() => {
+  const { score, maxScore, categoryScores } = useMemo(() => {
     let score = 0;
     let maxScore = 0;
+    const categoryScores: Record<
+      string,
+      { score: number; maxScore: number; count: number }
+    > = {};
+
+    Object.keys(questionCategories).forEach((catId) => {
+      categoryScores[catId] = { score: 0, maxScore: 0, count: 0 };
+    });
+
     questions.forEach((q) => {
       const maxOptionScore = Math.max(...q.options.map((opt) => opt.score));
       maxScore += maxOptionScore;
+      categoryScores[q.category].maxScore += maxOptionScore;
+      categoryScores[q.category].count += 1;
+
       const selectedAnswerText = answers[q.id];
       if (selectedAnswerText) {
         const selectedOption = q.options.find(
@@ -102,10 +117,11 @@ export default function CyberGuardSMEPage() {
         );
         if (selectedOption) {
           score += selectedOption.score;
+          categoryScores[q.category].score += selectedOption.score;
         }
       }
     });
-    return { score, maxScore };
+    return { score, maxScore, categoryScores };
   }, [answers]);
 
   useEffect(() => {
@@ -186,13 +202,12 @@ export default function CyberGuardSMEPage() {
     if (isAssessment) {
       const question = questions[currentQuestionIndex];
       const category = questionCategories[question.category];
-      const CategoryIcon = categoryIcons[question.category];
-      const progress = (step / totalQuestions) * 100;
+      const CategoryIcon = categoryIcons[question.category] || Shield;
 
       return (
         <div className="w-full max-w-3xl space-y-8">
           <div className="space-y-4">
-            <Progress value={progress} className="h-2 transition-all duration-300" />
+            <Progress value={(step / totalQuestions) * 100} className="h-2 transition-all duration-300" />
             <p className="text-center text-sm text-muted-foreground">
               Question {step} of {totalQuestions}
             </p>
@@ -248,12 +263,14 @@ export default function CyberGuardSMEPage() {
 
     if (isResults) {
       const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
-      const getScoreColor = () => {
-        if (scorePercentage < 40) return "text-destructive";
-        if (scorePercentage < 75) return "text-yellow-400";
-        return "text-green-400";
+      const getScoreInterpretation = () => {
+        if (scorePercentage < 40) return { text: "High Risk", color: "text-destructive" };
+        if (scorePercentage < 75) return { text: "Moderate Risk", color: "text-yellow-400" };
+        return { text: "Low Risk", color: "text-green-400" };
       };
       
+      const interpretation = getScoreInterpretation();
+
       const prioritizedRecs = {
         high: recommendations.filter((r) => r.priority === "high"),
         medium: recommendations.filter((r) => r.priority === "medium"),
@@ -279,19 +296,56 @@ export default function CyberGuardSMEPage() {
             </div>
           </div>
 
-          <Card className="print-card">
-            <CardHeader className="print-card-header">
-              <CardTitle className="text-2xl print-card-title">Overall Security Score</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center print-card-content">
-              <p className={cn("text-7xl font-bold", getScoreColor())}>
-                {scorePercentage.toFixed(0)}%
-              </p>
-              <p className="text-muted-foreground mt-2 print-text">
-                This score reflects your cybersecurity posture based on your answers.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-1 print-card">
+              <CardHeader className="print-card-header">
+                <CardTitle className="text-2xl print-card-title">Overall Security Score</CardTitle>
+              </CardHeader>
+              <CardContent className="text-center print-card-content space-y-4">
+                <p className={cn("text-7xl font-bold", interpretation.color)}>
+                  {scorePercentage.toFixed(0)}%
+                </p>
+                <Badge variant="outline" className={cn("text-lg", interpretation.color, interpretation.color.replace('text-', 'border-'))}>
+                  {interpretation.text}
+                </Badge>
+                <p className="text-muted-foreground pt-2 print-text">
+                  This score reflects your cybersecurity posture based on your answers.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2 print-card">
+              <CardHeader className="print-card-header">
+                 <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
+                  <TrendingUp /> Domain Scores
+                </CardTitle>
+                <CardDescription className="print-text">
+                  A breakdown of your score across different security domains.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 print-card-content">
+                {Object.entries(categoryScores).map(([catId, scores]) => {
+                   if (scores.count === 0) return null;
+                   const CategoryIcon = categoryIcons[catId] || Shield;
+                   const catPercentage = scores.maxScore > 0 ? (scores.score / scores.maxScore) * 100 : 0;
+                   return (
+                      <div key={catId} className="flex items-center gap-4 rounded-lg border p-3">
+                         <CategoryIcon className="h-8 w-8 text-muted-foreground" />
+                         <div className="flex-1">
+                           <div className="flex justify-between items-baseline">
+                             <p className="font-semibold text-card-foreground print-text">{questionCategories[catId].name}</p>
+                             <p className="text-sm font-bold text-muted-foreground print-text">
+                               {scores.score}/{scores.maxScore}
+                             </p>
+                           </div>
+                           <Progress value={catPercentage} className="h-2 mt-1" />
+                         </div>
+                      </div>
+                   );
+                })}
+              </CardContent>
+            </Card>
+          </div>
 
           <Card className="print-card">
             <CardHeader className="print-card-header">
@@ -311,7 +365,7 @@ export default function CyberGuardSMEPage() {
                 </TabsList>
                 
                 <h3 className="hidden print-recommendation-title">High Priority Recommendations</h3>
-                <TabsContent value="high" className="space-y-4 print-tabs-content">
+                <TabsContent value="high" className="space-y-4 pt-4 print-tabs-content">
                   {prioritizedRecs.high.length > 0 ? (
                     prioritizedRecs.high.map((rec, i) => (
                       <div key={i} className="p-4 rounded-lg border bg-card flex items-start gap-4 print-card">
@@ -323,7 +377,7 @@ export default function CyberGuardSMEPage() {
                 </TabsContent>
                 
                  <h3 className="hidden print-recommendation-title">Medium Priority Recommendations</h3>
-                <TabsContent value="medium" className="space-y-4 print-tabs-content">
+                <TabsContent value="medium" className="space-y-4 pt-4 print-tabs-content">
                   {prioritizedRecs.medium.length > 0 ? (
                     prioritizedRecs.medium.map((rec, i) => (
                       <div key={i} className="p-4 rounded-lg border bg-card flex items-start gap-4 print-card">
@@ -335,7 +389,7 @@ export default function CyberGuardSMEPage() {
                 </TabsContent>
 
                  <h3 className="hidden print-recommendation-title">Low Priority Recommendations</h3>
-                <TabsContent value="low" className="space-y-4 print-tabs-content">
+                <TabsContent value="low" className="space-y-4 pt-4 print-tabs-content">
                    {prioritizedRecs.low.length > 0 ? (
                     prioritizedRecs.low.map((rec, i) => (
                       <div key={i} className="p-4 rounded-lg border bg-card flex items-start gap-4 print-card">

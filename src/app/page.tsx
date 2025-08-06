@@ -15,6 +15,7 @@ import {
   Laptop,
   TrendingUp,
   Target,
+  FileText,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,8 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
 
 import { questions, questionCategories } from "@/lib/questions";
@@ -51,8 +53,9 @@ const categoryIcons: Record<string, React.ElementType> = {
 };
 
 export default function CyberGuardSMEPage() {
-  const [step, setStep] = useState(0); // 0=start, 1-n=questions, n+1=loading, n+2=results
+  const [step, setStep] = useState(0); // 0=start, 1-n=questions, n+1=loading, n+2=email, n+3=results
   const [answers, setAnswers] = useState<Answers>({});
+  const [email, setEmail] = useState("");
   const [recommendations, setRecommendations] =
     useState<GenerateSecurityRecommendationsOutput>([]);
 
@@ -61,7 +64,8 @@ export default function CyberGuardSMEPage() {
   const isStart = step === 0;
   const isAssessment = step > 0 && step <= totalQuestions;
   const isLoading = step === totalQuestions + 1;
-  const isResults = step === totalQuestions + 2;
+  const isEmailCapture = step === totalQuestions + 2;
+  const isResults = step === totalQuestions + 3;
   const currentQuestionIndex = step - 1;
 
   const handleSelectAnswer = (questionId: string, answerText: string) => {
@@ -86,10 +90,24 @@ export default function CyberGuardSMEPage() {
     setStep(totalQuestions + 1);
   }, [totalQuestions]);
 
+  const handleShowReport = () => {
+    // Basic email validation
+    if (email && email.includes("@")) {
+      setStep(totalQuestions + 3);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Invalid Email",
+        description: "Please enter a valid email address to view your report.",
+      });
+    }
+  };
+  
   const handleRestart = () => {
     setStep(0);
     setAnswers({});
     setRecommendations([]);
+    setEmail("");
   };
 
   const { score, maxScore, categoryScores } = useMemo(() => {
@@ -198,6 +216,49 @@ export default function CyberGuardSMEPage() {
         </div>
       );
     }
+    
+    if (isEmailCapture) {
+      return (
+        <Card className="w-full max-w-lg text-center shadow-2xl animate-fade-in">
+          <CardHeader>
+            <div className="mx-auto mb-4 text-primary">
+              <FileText size={48} />
+            </div>
+            <CardTitle className="text-3xl font-headline">
+              Your Report is Ready!
+            </CardTitle>
+            <CardDescription className="text-md text-muted-foreground pt-2">
+              Enter your email address below to view your personalized cybersecurity report.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="space-y-2 text-left">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="text-base"
+                />
+              </div>
+            <Button
+              size="lg"
+              className="w-full font-bold text-lg"
+              onClick={handleShowReport}
+              disabled={!email}
+            >
+              Get My Report
+            </Button>
+          </CardContent>
+          <CardFooter className="text-xs text-muted-foreground justify-center">
+            <p>We respect your privacy and will not share your email.</p>
+          </CardFooter>
+        </Card>
+      );
+    }
+
 
     if (isAssessment) {
       const question = questions[currentQuestionIndex];
@@ -411,7 +472,7 @@ export default function CyberGuardSMEPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <a href="mailto:consultation@tanosec.com?subject=CyberGuard SME Consultation Request" target="_blank" rel="noopener noreferrer">
+              <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
                   Book a Free Consultation
                 </Button>
@@ -431,3 +492,5 @@ export default function CyberGuardSMEPage() {
     </main>
   );
 }
+
+    

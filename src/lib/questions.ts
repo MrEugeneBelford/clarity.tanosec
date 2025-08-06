@@ -19,7 +19,7 @@ export const questionCategories: Record<string, QuestionCategory> = {
   data: { name: "Data Protection & Backup", weight: 0.15 },
   endpoint: { name: "Endpoint Security", weight: 0.15 },
   training: { name: "Security Awareness & Training", weight: 0.15 },
-  incident: { name: "Incident Response & Recovery", weight: 0.15 },
+  incident: { name: "Incident Response & Recovery", weight: 0.1 },
   compliance: { name: "Compliance & Risk", weight: 0.05 },
 };
 
@@ -232,3 +232,5 @@ export const questions: Question[] = [
     ],
   },
 ];
+
+    

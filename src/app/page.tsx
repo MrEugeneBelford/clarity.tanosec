@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Laptop,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   data: Database,
   incident: AlertTriangle,
   training: Users,
+  endpoint: Laptop,
 };
 
 export default function CyberGuardSMEPage() {

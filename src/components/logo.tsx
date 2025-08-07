@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const Logo = ({
@@ -7,12 +8,17 @@ const Logo = ({
   className?: string;
   size?: "normal" | "small";
 }) => {
-  const sizeClasses = size === "normal" ? "h-32 w-32" : "h-10 w-10";
-  const textSize = size === "normal" ? "text-2xl font-bold tracking-wider" : "text-xs font-bold";
+  const sizeClasses = size === "normal" ? { width: 128, height: 128 } : { width: 40, height: 40 };
 
   return (
-    <div className={cn("flex items-center justify-center rounded-full bg-primary", sizeClasses, className)}>
-      <span className={cn("text-primary-foreground", textSize)}>CLARITY</span>
+    <div className={cn("relative", className)} style={{ width: sizeClasses.width, height: sizeClasses.height }}>
+      <Image
+        src="https://tanosec.co.za/wp-content/uploads/2025/08/clarity_logo.png"
+        alt="Clarity by Tanosec Logo"
+        width={sizeClasses.width}
+        height={sizeClasses.height}
+        className="object-contain"
+      />
     </div>
   );
 };

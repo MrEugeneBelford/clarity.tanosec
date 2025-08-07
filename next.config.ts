@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'tanosec.co.za',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
 };

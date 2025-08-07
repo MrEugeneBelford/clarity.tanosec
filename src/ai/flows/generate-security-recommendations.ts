@@ -30,9 +30,15 @@ const RecommendationSchema = z.object({
     .describe('The priority of the recommendation.'),
 });
 
-const GenerateSecurityRecommendationsOutputSchema = z.array(
-  RecommendationSchema
-);
+const GenerateSecurityRecommendationsOutputSchema = z.object({
+  risks: z.array(z.string()).describe('A list of the top identified risks.'),
+  strengths: z
+    .array(z.string())
+    .describe('A list of the top identified strengths.'),
+  recommendations: z
+    .array(RecommendationSchema)
+    .describe('A list of tailored recommendations.'),
+});
 
 export type GenerateSecurityRecommendationsOutput = z.infer<
   typeof GenerateSecurityRecommendationsOutputSchema
@@ -51,14 +57,17 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert cybersecurity advisor for small and medium size enterprises (SMEs).
   Based on the SME's responses to a cybersecurity self-assessment, you will provide personalized and actionable recommendations.
 
+  Your response should be simplified for smaller, non-enterprise companies.
+
   Assessment Responses:
   {{#each assessmentResponses}}
     {{@key}}: {{{this}}}
   {{/each}}
 
-  Prioritize recommendations into high, medium, and low priority action items.
-  Return a JSON array of recommendations with the following schema:
-  ${JSON.stringify(RecommendationSchema.describe())}
+  Based on this user’s cybersecurity assessment, identify their top risks and strengths. Then, recommend tailored actions for the business to take. Prioritize recommendations into high, medium, and low priority action items.
+
+  Return a JSON object with the following schema:
+  ${JSON.stringify(GenerateSecurityRecommendationsOutputSchema.describe())}
   `,
 });
 

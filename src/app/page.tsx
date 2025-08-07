@@ -16,6 +16,9 @@ import {
   TrendingUp,
   Target,
   FileText,
+  CalendarClock,
+  ThumbsDown,
+  ThumbsUp,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,12 +36,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import { questions, questionCategories } from "@/lib/questions";
 import { getRecommendations } from "@/lib/actions";
 import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { add } from "date-fns";
 
 type Answers = Record<string, string>;
 
@@ -56,8 +61,9 @@ export default function ClarityByTanosecPage() {
   const [step, setStep] = useState(0); // 0=start, 1-n=questions, n+1=loading, n+2=email, n+3=results
   const [answers, setAnswers] = useState<Answers>({});
   const [email, setEmail] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [recommendations, setRecommendations] =
-    useState<GenerateSecurityRecommendationsOutput>([]);
+    useState<GenerateSecurityRecommendationsOutput | null>(null);
 
   const { toast } = useToast();
   const totalQuestions = questions.length;
@@ -93,6 +99,9 @@ export default function ClarityByTanosecPage() {
   const handleShowReport = () => {
     // Basic email validation
     if (email && email.includes("@")) {
+      // Logic for newsletter opt-in would be handled here
+      // For example, sending the email and opt-in status to a server
+      console.log(`Email: ${email}, Newsletter: ${newsletterOptIn}`);
       setStep(totalQuestions + 3);
     } else {
       toast({
@@ -106,9 +115,46 @@ export default function ClarityByTanosecPage() {
   const handleRestart = () => {
     setStep(0);
     setAnswers({});
-    setRecommendations([]);
+    setRecommendations(null);
     setEmail("");
+    setNewsletterOptIn(false);
   };
+  
+  const handleRemindMe = () => {
+    const reassessmentDate = add(new Date(), { months: 3 });
+
+    const formatDateForICS = (date: Date) => {
+        return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'BEGIN:VEVENT',
+        `DTSTART:${formatDateForICS(reassessmentDate)}`,
+        `DTEND:${formatDateForICS(reassessmentDate)}`,
+        'SUMMARY:Clarity Cybersecurity Recheck',
+        'DESCRIPTION:Time to retake your Clarity assessment and see your cybersecurity progress.',
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\n');
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'reassessment-reminder.ics');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+        title: "Reminder Set!",
+        description: "An event has been added to your calendar to reassess in 3 months.",
+    });
+};
+
 
   const { score, maxScore, categoryScores } = useMemo(() => {
     let score = 0;
@@ -241,6 +287,16 @@ export default function ClarityByTanosecPage() {
                   className="text-base"
                 />
               </div>
+               <div className="flex items-center space-x-2 text-left">
+                  <Checkbox 
+                    id="newsletter" 
+                    checked={newsletterOptIn}
+                    onCheckedChange={(checked) => setNewsletterOptIn(checked as boolean)}
+                  />
+                  <Label htmlFor="newsletter" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                    Yes, I’d like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
+                  </Label>
+              </div>
             <Button
               size="lg"
               className="w-full font-bold text-lg"
@@ -320,7 +376,7 @@ export default function ClarityByTanosecPage() {
       );
     }
 
-    if (isResults) {
+    if (isResults && recommendations) {
       const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
       const getScoreInterpretation = () => {
         if (scorePercentage < 40) return { text: "High Risk", color: "text-destructive" };
@@ -331,9 +387,9 @@ export default function ClarityByTanosecPage() {
       const interpretation = getScoreInterpretation();
 
       const prioritizedRecs = {
-        high: recommendations.filter((r) => r.priority === "high"),
-        medium: recommendations.filter((r) => r.priority === "medium"),
-        low: recommendations.filter((r) => r.priority === "low"),
+        high: recommendations.recommendations.filter((r) => r.priority === "high"),
+        medium: recommendations.recommendations.filter((r) => r.priority === "medium"),
+        low: recommendations.recommendations.filter((r) => r.priority === "low"),
       };
 
       return (
@@ -405,6 +461,32 @@ export default function ClarityByTanosecPage() {
               </CardContent>
             </Card>
           </div>
+          
+           <Card className="print-card">
+            <CardHeader className="print-card-header">
+              <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
+                <Sparkles className="text-primary" /> AI-Powered Summary
+              </CardTitle>
+              <CardDescription className="print-text">
+                Our AI has analyzed your results to highlight your key risks and strengths.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 print-card-content">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg flex items-center gap-2"><ThumbsDown className="text-destructive"/> Top Risks</h3>
+                  <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+                    {recommendations.risks.map((risk, i) => <li key={i} className="print-text">{risk}</li>)}
+                  </ul>
+                </div>
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg flex items-center gap-2"><ThumbsUp className="text-green-500"/> Top Strengths</h3>
+                   <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+                    {recommendations.strengths.map((strength, i) => <li key={i} className="print-text">{strength}</li>)}
+                  </ul>
+                </div>
+            </CardContent>
+          </Card>
+
 
           <Card className="print-card">
             <CardHeader className="print-card-header">
@@ -469,12 +551,16 @@ export default function ClarityByTanosecPage() {
                 Our experts can help you implement these recommendations and secure your business.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-wrap gap-4">
               <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
                   Book a Free Consultation
                 </Button>
               </a>
+               <Button size="lg" variant="outline" onClick={handleRemindMe}>
+                  <CalendarClock className="mr-2" />
+                  Remind me to reassess in 3 months
+                </Button>
             </CardContent>
           </Card>
 

@@ -395,7 +395,7 @@ export default function ClarityByTanosecPage() {
       return (
         <div className="w-full max-w-5xl space-y-8 animate-fade-in">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-             <div className="flex items-center gap-2">
+             <div className="flex items-center gap-4">
                <Logo size="small" />
                <h1 className="text-3xl font-headline">Your Security Report</h1>
              </div>

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { ShieldCheck } from 'lucide-react';
 
 const Logo = ({
   className,
@@ -8,28 +9,11 @@ const Logo = ({
   size?: "normal" | "small";
 }) => {
   const sizeClasses = size === "normal" ? "h-24 w-24" : "h-10 w-10";
+  const iconSize = size === "normal" ? 96 : 40;
 
   return (
-    <div className={cn(sizeClasses, className)}>
-      <svg
-        viewBox="0 0 100 100"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-label="Clarity Logo"
-      >
-        <circle cx="50" cy="50" r="50" fill="hsl(var(--primary))" />
-        <text
-          x="50%"
-          y="50%"
-          dominantBaseline="central"
-          textAnchor="middle"
-          fill="hsl(var(--primary-foreground))"
-          className="font-headline"
-          style={{ fontSize: '48px', fontWeight: 'bold' }}
-        >
-          Clarity
-        </text>
-      </svg>
+    <div className={cn("flex items-center justify-center rounded-full bg-primary", sizeClasses, className)}>
+      <ShieldCheck className="text-primary-foreground" style={{ width: iconSize * 0.6, height: iconSize * 0.6 }} />
     </div>
   );
 };

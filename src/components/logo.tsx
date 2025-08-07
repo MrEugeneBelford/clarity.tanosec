@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { ShieldCheck } from 'lucide-react';
 
 const Logo = ({
   className,
@@ -8,12 +7,12 @@ const Logo = ({
   className?: string;
   size?: "normal" | "small";
 }) => {
-  const sizeClasses = size === "normal" ? "h-24 w-24" : "h-10 w-10";
-  const iconSize = size === "normal" ? 96 : 40;
+  const sizeClasses = size === "normal" ? "h-32 w-32" : "h-10 w-10";
+  const textSize = size === "normal" ? "text-2xl font-bold tracking-wider" : "text-xs font-bold";
 
   return (
     <div className={cn("flex items-center justify-center rounded-full bg-primary", sizeClasses, className)}>
-      <ShieldCheck className="text-primary-foreground" style={{ width: iconSize * 0.6, height: iconSize * 0.6 }} />
+      <span className={cn("text-primary-foreground", textSize)}>CLARITY</span>
     </div>
   );
 };

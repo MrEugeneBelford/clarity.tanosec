@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "CyberGuard SME",
-  description: "AI-powered cybersecurity assessment for SMEs.",
+  title: "Clarity by Tanosec",
+  description: "AI-powered cybersecurity insights for your business.",
 };
 
 export default function RootLayout({

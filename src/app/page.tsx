@@ -52,7 +52,7 @@ const categoryIcons: Record<string, React.ElementType> = {
   compliance: Target,
 };
 
-export default function CyberGuardSMEPage() {
+export default function ClarityByTanosecPage() {
   const [step, setStep] = useState(0); // 0=start, 1-n=questions, n+1=loading, n+2=email, n+3=results
   const [answers, setAnswers] = useState<Answers>({});
   const [email, setEmail] = useState("");
@@ -181,12 +181,10 @@ export default function CyberGuardSMEPage() {
               <Logo />
             </div>
             <CardTitle className="text-4xl font-headline">
-              Welcome to CyberGuard SME
+              Welcome to Clarity by Tanosec
             </CardTitle>
             <CardDescription className="text-lg text-muted-foreground pt-2">
-              Your AI-powered cybersecurity partner. Take our quick assessment to
-              receive personalized recommendations and strengthen your security
-              posture.
+              AI-powered cybersecurity insights for your business. Assess your current posture in minutes and receive clear, actionable steps to improve your defences.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -492,5 +490,3 @@ export default function CyberGuardSMEPage() {
     </main>
   );
 }
-
-    

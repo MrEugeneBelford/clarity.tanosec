@@ -7,7 +7,7 @@ const Logo = ({
   className?: string;
   size?: "normal" | "small";
 }) => {
-  const sizeClasses = size === "normal" ? "h-16 w-16" : "h-10 w-10";
+  const sizeClasses = size === "normal" ? "h-24 w-24" : "h-10 w-10";
 
   return (
     <div className={cn(sizeClasses, className)}>
@@ -25,7 +25,7 @@ const Logo = ({
           textAnchor="middle"
           fill="hsl(var(--primary-foreground))"
           className="font-headline"
-          style={{ fontSize: '32px', fontWeight: 'bold' }}
+          style={{ fontSize: '48px', fontWeight: 'bold' }}
         >
           Clarity
         </text>

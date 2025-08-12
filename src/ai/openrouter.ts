@@ -1,8 +1,5 @@
 import {OpenRouter} from 'openrouter-client';
 
-// Initialize OpenRouter client
-const openrouter = new OpenRouter(process.env.OPENROUTER_API_KEY!);
-
 export interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -19,12 +16,30 @@ export async function generateOpenRouterResponse(
   temperature: number = 0.7,
   maxTokens: number = 1000
 ): Promise<OpenRouterResponse> {
+  // Check if API key is available
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error('OPENROUTER_API_KEY is not set');
+    return {
+      content: '',
+      success: false,
+      error: 'OpenRouter API key is not configured'
+    };
+  }
+
   try {
+    // Initialize OpenRouter client with API key
+    const openrouter = new OpenRouter(apiKey);
+    
+    console.log('Sending request to OpenRouter with messages:', messages.length);
+    
     const response = await openrouter.chat(messages, {
       model: 'gpt-4o-mini',
       temperature,
       max_tokens: maxTokens,
     });
+    
+    console.log('OpenRouter response received:', response.success);
     
     if (response.success) {
       const content = response.data.choices[0]?.message?.content || '';
@@ -33,10 +48,11 @@ export async function generateOpenRouterResponse(
         success: true
       };
     } else {
+      console.error('OpenRouter API error:', response.errorMessage);
       return {
         content: '',
         success: false,
-        error: response.errorMessage || 'Unknown error'
+        error: response.errorMessage || 'Unknown OpenRouter API error'
       };
     }
   } catch (error) {

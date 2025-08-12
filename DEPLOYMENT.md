@@ -57,7 +57,35 @@ The application will be available at `http://localhost:9002`
 
 ## Troubleshooting
 
-- If you encounter build errors, check that your Node.js version is 18+ locally
-- Ensure all environment variables are set in Netlify
-- Check the build logs in Netlify for any specific errors
-- Verify your OpenRouter API key is valid and has sufficient credits
+### Common Issues
+
+- **If you encounter build errors**, check that your Node.js version is 18+ locally
+- **Ensure all environment variables are set in Netlify**
+- **Check the build logs in Netlify for any specific errors**
+- **Verify your OpenRouter API key is valid and has sufficient credits**
+
+### Testing OpenRouter Integration
+
+After deployment, you can test if OpenRouter is working correctly by visiting:
+```
+https://your-app-name.netlify.app/api/test-openrouter
+```
+
+This will return:
+- ✅ **Success**: If OpenRouter is configured correctly
+- ❌ **Error**: If there are configuration issues
+
+### Debugging Steps
+
+1. **Check Environment Variables**: Ensure `OPENROUTER_API_KEY` is set in Netlify
+2. **Test API Key**: Visit the test endpoint above
+3. **Check Netlify Logs**: Look at function logs in Netlify dashboard
+4. **Verify OpenRouter Account**: Ensure your OpenRouter account has credits
+5. **Check API Limits**: OpenRouter has rate limits and usage quotas
+
+### Error Messages
+
+- **"OpenRouter API key is not configured"**: Set the `OPENROUTER_API_KEY` environment variable
+- **"OpenRouter API error"**: Check your API key validity and account status
+- **"Failed to parse AI response"**: The AI response format was invalid (rare)
+- **"Could not generate recommendations"**: General error, check logs for details

@@ -51,6 +51,8 @@ export async function generateSecurityRecommendations(
 const generateSecurityRecommendationsFlow = async (
   input: GenerateSecurityRecommendationsInput
 ): Promise<GenerateSecurityRecommendationsOutput> => {
+  console.log('Starting security recommendations flow with', Object.keys(input.assessmentResponses).length, 'responses');
+  
   const systemPrompt = `You are an expert cybersecurity advisor for small and medium size enterprises (SMEs).
 Based on the SME's responses to a cybersecurity self-assessment, you will provide personalized and actionable recommendations.
 
@@ -82,17 +84,27 @@ Please analyze these responses and provide cybersecurity recommendations.`;
     { role: 'user', content: userPrompt }
   ];
 
+  console.log('Calling OpenRouter API...');
   const response = await generateOpenRouterResponse(messages, 0.7, 2000);
 
   if (!response.success) {
+    console.error('OpenRouter API failed:', response.error);
     throw new Error(`OpenRouter API error: ${response.error}`);
   }
 
+  console.log('OpenRouter API succeeded, parsing response...');
+  
   try {
     const parsedResponse = JSON.parse(response.content);
-    return GenerateSecurityRecommendationsOutputSchema.parse(parsedResponse);
+    console.log('Response parsed successfully, validating schema...');
+    
+    const validatedResponse = GenerateSecurityRecommendationsOutputSchema.parse(parsedResponse);
+    console.log('Response validated successfully');
+    
+    return validatedResponse;
   } catch (error) {
-    console.error('Failed to parse OpenRouter response:', error);
+    console.error('Failed to parse or validate OpenRouter response:', error);
+    console.error('Raw response content:', response.content);
     throw new Error('Failed to parse AI response');
   }
 };

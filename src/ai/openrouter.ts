@@ -32,9 +32,10 @@ export async function generateOpenRouterResponse(
     const openrouter = new OpenRouter(apiKey);
     
     console.log('Sending request to OpenRouter with messages:', messages.length);
+    console.log('Using model: google/gemma-3n-e2b-it:free');
     
     const response = await openrouter.chat(messages, {
-      model: 'gpt-4o-mini',
+      model: 'google/gemma-3n-e2b-it:free', // Use the Google Gemma model
       temperature,
       max_tokens: maxTokens,
     });
@@ -48,11 +49,15 @@ export async function generateOpenRouterResponse(
         success: true
       };
     } else {
-      console.error('OpenRouter API error:', response.errorMessage);
+      // Handle different error response types
+      const errorMessage = 'errorMessage' in response ? response.errorMessage : 
+                          'error' in response ? String(response.error) : 
+                          'Unknown OpenRouter API error';
+      console.error('OpenRouter API error:', errorMessage);
       return {
         content: '',
         success: false,
-        error: response.errorMessage || 'Unknown OpenRouter API error'
+        error: errorMessage
       };
     }
   } catch (error) {

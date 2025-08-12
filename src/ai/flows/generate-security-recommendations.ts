@@ -10,6 +10,7 @@
 
 import {z} from 'genkit';
 import {generateOpenRouterResponse, OpenRouterMessage} from '@/ai/openrouter';
+import {generateOpenRouterResponseDirect} from '@/ai/openrouter-direct';
 
 const GenerateSecurityRecommendationsInputSchema = z.object({
   assessmentResponses: z
@@ -85,10 +86,17 @@ Please analyze these responses and provide cybersecurity recommendations.`;
   ];
 
   console.log('Calling OpenRouter API...');
-  const response = await generateOpenRouterResponse(messages, 0.7, 2000);
+  
+  // Try the client library first, then fallback to direct API
+  let response = await generateOpenRouterResponse(messages, 0.7, 2000);
+  
+  if (!response.success) {
+    console.log('Client library failed, trying direct API call...');
+    response = await generateOpenRouterResponseDirect(messages, 0.7, 2000);
+  }
 
   if (!response.success) {
-    console.error('OpenRouter API failed:', response.error);
+    console.error('Both OpenRouter methods failed:', response.error);
     throw new Error(`OpenRouter API error: ${response.error}`);
   }
 

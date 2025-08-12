@@ -1,7 +1,8 @@
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
 
+// For now, we'll use a basic configuration
+// The actual AI calls will be handled by our custom OpenRouter integration
 export const ai = genkit({
-  plugins: [googleAI()],
-  model: 'googleai/gemini-2.0-flash',
+  plugins: [],
+  // We'll handle the model calls directly in our flows
 });

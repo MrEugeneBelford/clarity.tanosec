@@ -9,6 +9,36 @@ export interface OpenRouterResponse {
   error?: string;
 }
 
+// Helper function to convert messages for Google models that don't support system messages
+function convertMessagesForGoogleModel(messages: OpenRouterMessage[]): OpenRouterMessage[] {
+  const convertedMessages: OpenRouterMessage[] = [];
+  
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    
+    if (message.role === 'system') {
+      // For Google models, convert system messages to user messages
+      // and combine with the next user message if it exists
+      if (i + 1 < messages.length && messages[i + 1].role === 'user') {
+        convertedMessages.push({
+          role: 'user',
+          content: `${message.content}\n\n${messages[i + 1].content}`
+        });
+        i++; // Skip the next message since we combined it
+      } else {
+        convertedMessages.push({
+          role: 'user',
+          content: message.content
+        });
+      }
+    } else {
+      convertedMessages.push(message);
+    }
+  }
+  
+  return convertedMessages;
+}
+
 export async function generateOpenRouterResponseDirect(
   messages: OpenRouterMessage[],
   temperature: number = 0.7,
@@ -28,6 +58,10 @@ export async function generateOpenRouterResponseDirect(
   try {
     console.log('Sending direct request to OpenRouter API with google/gemma-3n-e2b-it:free...');
     
+    // Convert messages for Google model compatibility
+    const convertedMessages = convertMessagesForGoogleModel(messages);
+    console.log('Converted messages for Google model (direct):', convertedMessages.length);
+    
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -38,7 +72,7 @@ export async function generateOpenRouterResponseDirect(
       },
       body: JSON.stringify({
         model: 'google/gemma-3n-e2b-it:free',
-        messages: messages,
+        messages: convertedMessages,
         temperature: temperature,
         max_tokens: maxTokens
       })

@@ -22,10 +22,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Test with a simple message
+    // Test with a simple message that works with Google models
     const testMessages = [
-      { role: 'system' as const, content: 'You are a helpful assistant.' },
-      { role: 'user' as const, content: 'Say "Hello, OpenRouter is working!"' }
+      { role: 'user' as const, content: 'You are a helpful assistant. Say "Hello, OpenRouter is working!"' }
     ];
 
     console.log('Testing OpenRouter with API key:', apiKey.substring(0, 10) + '...');

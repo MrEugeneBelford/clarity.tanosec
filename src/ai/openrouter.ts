@@ -11,6 +11,36 @@ export interface OpenRouterResponse {
   error?: string;
 }
 
+// Helper function to convert messages for Google models that don't support system messages
+function convertMessagesForGoogleModel(messages: OpenRouterMessage[]): OpenRouterMessage[] {
+  const convertedMessages: OpenRouterMessage[] = [];
+  
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    
+    if (message.role === 'system') {
+      // For Google models, convert system messages to user messages
+      // and combine with the next user message if it exists
+      if (i + 1 < messages.length && messages[i + 1].role === 'user') {
+        convertedMessages.push({
+          role: 'user',
+          content: `${message.content}\n\n${messages[i + 1].content}`
+        });
+        i++; // Skip the next message since we combined it
+      } else {
+        convertedMessages.push({
+          role: 'user',
+          content: message.content
+        });
+      }
+    } else {
+      convertedMessages.push(message);
+    }
+  }
+  
+  return convertedMessages;
+}
+
 export async function generateOpenRouterResponse(
   messages: OpenRouterMessage[],
   temperature: number = 0.7,
@@ -34,7 +64,11 @@ export async function generateOpenRouterResponse(
     console.log('Sending request to OpenRouter with messages:', messages.length);
     console.log('Using model: google/gemma-3n-e2b-it:free');
     
-    const response = await openrouter.chat(messages, {
+    // Convert messages for Google model compatibility
+    const convertedMessages = convertMessagesForGoogleModel(messages);
+    console.log('Converted messages for Google model:', convertedMessages.length);
+    
+    const response = await openrouter.chat(convertedMessages, {
       model: 'google/gemma-3n-e2b-it:free', // Use the Google Gemma model
       temperature,
       max_tokens: maxTokens,

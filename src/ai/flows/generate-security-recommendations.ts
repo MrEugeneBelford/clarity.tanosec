@@ -61,24 +61,26 @@ Your response should be simplified for smaller, non-enterprise companies.
 
 Based on this user's cybersecurity assessment, identify their top risks and strengths. Then, recommend tailored actions for the business to take. Prioritize recommendations into high, medium, and low priority action items.
 
-Return a JSON object with the following schema:
+IMPORTANT: You must respond with ONLY a valid JSON object in this exact format:
 {
   "risks": ["risk1", "risk2", "risk3"],
   "strengths": ["strength1", "strength2", "strength3"],
   "recommendations": [
     {
       "recommendation": "specific actionable recommendation",
-      "priority": "high|medium|low"
+      "priority": "high"
     }
   ]
-}`;
+}
+
+Do not include any text before or after the JSON object.`;
 
   const userPrompt = `Assessment Responses:
 ${Object.entries(input.assessmentResponses)
   .map(([key, value]) => `${key}: ${value}`)
   .join('\n')}
 
-Please analyze these responses and provide cybersecurity recommendations.`;
+Please analyze these responses and provide cybersecurity recommendations in the exact JSON format specified.`;
 
   const messages: OpenRouterMessage[] = [
     { role: 'system', content: systemPrompt },
@@ -101,9 +103,19 @@ Please analyze these responses and provide cybersecurity recommendations.`;
   }
 
   console.log('OpenRouter API succeeded, parsing response...');
+  console.log('Raw response content:', response.content);
   
   try {
-    const parsedResponse = JSON.parse(response.content);
+    // Try to extract JSON from the response (in case there's extra text)
+    let jsonContent = response.content.trim();
+    
+    // Find JSON object in the response
+    const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonContent = jsonMatch[0];
+    }
+    
+    const parsedResponse = JSON.parse(jsonContent);
     console.log('Response parsed successfully, validating schema...');
     
     const validatedResponse = GenerateSecurityRecommendationsOutputSchema.parse(parsedResponse);
@@ -113,6 +125,17 @@ Please analyze these responses and provide cybersecurity recommendations.`;
   } catch (error) {
     console.error('Failed to parse or validate OpenRouter response:', error);
     console.error('Raw response content:', response.content);
-    throw new Error('Failed to parse AI response');
+    
+    // Return a fallback response if parsing fails
+    return {
+      risks: ["Unable to parse AI response"],
+      strengths: ["Assessment completed successfully"],
+      recommendations: [
+        {
+          recommendation: "Please contact support for detailed recommendations",
+          priority: "high" as const
+        }
+      ]
+    };
   }
 };

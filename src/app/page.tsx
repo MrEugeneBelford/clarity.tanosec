@@ -97,19 +97,22 @@ export default function ClarityByTanosecPage() {
   }, [totalQuestions]);
 
   const handleShowReport = () => {
-    // Basic email validation
+    // Email is optional but recommended
     if (email && email.includes("@")) {
       // Logic for newsletter opt-in would be handled here
       // For example, sending the email and opt-in status to a server
       console.log(`Email: ${email}, Newsletter: ${newsletterOptIn}`);
-      setStep(totalQuestions + 3);
-    } else {
+    } else if (email && !email.includes("@")) {
+      // Show warning for invalid email but still proceed
       toast({
         variant: "destructive",
-        title: "Invalid Email",
-        description: "Please enter a valid email address to view your report.",
+        title: "Invalid Email Format",
+        description: "The email format appears invalid, but you can still view your report.",
       });
     }
+    
+    // Always proceed to the report
+    setStep(totalQuestions + 3);
   };
   
   const handleRestart = () => {
@@ -272,12 +275,12 @@ export default function ClarityByTanosecPage() {
               Your Report is Ready!
             </CardTitle>
             <CardDescription className="text-md text-muted-foreground pt-2">
-              Enter your email address below to view your personalized cybersecurity report.
+              Enter your email address below to view your personalized cybersecurity report. <strong>Email is optional but recommended</strong> for receiving your report and future updates.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="space-y-2 text-left">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">Email Address (Optional but Recommended)</Label>
                 <Input
                   id="email"
                   type="email"
@@ -294,17 +297,28 @@ export default function ClarityByTanosecPage() {
                     onCheckedChange={(checked) => setNewsletterOptIn(checked as boolean)}
                   />
                   <Label htmlFor="newsletter" className="text-sm font-normal text-muted-foreground cursor-pointer">
-                    Yes, I’d like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
+                    Yes, I'd like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
                   </Label>
               </div>
-            <Button
-              size="lg"
-              className="w-full font-bold text-lg"
-              onClick={handleShowReport}
-              disabled={!email}
-            >
-              Get My Report
-            </Button>
+            <div className="space-y-3">
+              <Button
+                size="lg"
+                className="w-full font-bold text-lg"
+                onClick={handleShowReport}
+              >
+                Get My Report
+              </Button>
+              {!email && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleShowReport}
+                >
+                  Continue Without Email
+                </Button>
+              )}
+            </div>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground justify-center">
             <p>We respect your privacy and will not share your email.</p>

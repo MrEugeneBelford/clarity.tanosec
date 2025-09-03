@@ -561,6 +561,17 @@ export default function ClarityByTanosecPage() {
             </CardContent>
           </Card>
           
+          <Card className="print-card">
+            <CardHeader className="print-card-header">
+              <CardTitle className="text-2xl print-card-title">Contact Tanosec Cybersecurity</CardTitle>
+              <CardDescription className="print-text">We're here to help you implement your recommendations.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 print-card-content">
+              <p className="print-text"><strong>Telephone:</strong> +27 68 629 5030</p>
+              <p className="print-text"><strong>Email:</strong> clarity@tanosec.co.za</p>
+            </CardContent>
+          </Card>
+
           <Card className="bg-gradient-to-r from-primary/20 to-accent/20 no-print">
             <CardHeader>
               <CardTitle>Ready to take the next step?</CardTitle>

@@ -3,50 +3,15 @@
 @tailwind utilities;
 
 
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    /* Default to dark app theme */
+    --background: 0 0% 8.6%; /* ~ #161616 */
+    --foreground: 0 0% 98%;
+    --card: 240 3% 7%; /* ~ #121213 */
+    --card-foreground: 0 0% 98%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 76 83% 66%;
-    --primary-foreground: 60 2% 11%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 30 100% 60%;
-    --accent-foreground: 60 2% 11%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 76 83% 66%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-  .dark {
-    --background: 60 2% 11%;
-    --foreground: 0 0% 98%;
-    --card: 60 2% 15%;
-    --card-foreground: 0 0% 98%;
-    --popover: 60 2% 11%;
-    --popover-foreground: 0 0% 98%;
     --primary: 76 83% 66%;
     --primary-foreground: 60 2% 11%;
     --secondary: 0 0% 14.9%;
@@ -60,11 +25,12 @@
     --border: 60 2% 25%;
     --input: 60 2% 25%;
     --ring: 76 83% 66%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -74,6 +40,8 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+  /* .dark class remains unnecessary since dark is default, but keep for compatibility */
+  .dark { }
 }
 
 @layer base {
@@ -89,19 +57,26 @@
   .no-print {
     display: none !important;
   }
+  /* Force a light theme for print */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+  }
   body {
-    background-color: white !important;
-    color: black !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
   }
   .print-card {
-    border: 1px solid #ccc !important;
+    border: 1px solid #e5e5e5 !important;
     box-shadow: none !important;
-    background-color: white !important;
-    color: black !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
     break-inside: avoid;
   }
   .print-card-header, .print-card-content, .print-card-title, .print-text, .print-badge {
-    color: black !important;
+    color: #000000 !important;
   }
   .print-tabs-list {
     display: none !important;
@@ -110,11 +85,23 @@
     margin-top: 0 !important;
     border-top: none !important;
   }
-   .print-recommendation-title {
+  /* Force all recommendations tabs content to be visible when printing */
+  .print-tabs-content[hidden] {
+    display: block !important;
+  }
+  .print-recommendation-title {
     display: block !important;
     font-size: 1.5rem;
     font-weight: bold;
     margin-bottom: 1rem;
     margin-top: 1.5rem;
   }
+  .only-print {
+    display: block !important;
+  }
+}
+
+/* Screen-only by default */
+.only-print {
+  display: none;
 }

@@ -116,6 +116,10 @@
 .pdf-mode #full-report .gap-4 { gap: 14px !important; }
 .pdf-mode #full-report .gap-3 { gap: 10px !important; }
 
+/* Keep pill (badge) labels vertically centered */
+.ts-badge { line-height: 1 !important; display: inline-flex; align-items: center; justify-content: center; }
+.pdf-mode .ts-badge { line-height: 1 !important; padding-top: 0 !important; padding-bottom: 0 !important; min-height: 22px !important; }
+
 /* Full Report: branding header/footer and print helpers */
 .brand-header {
   padding: 10px 16px;

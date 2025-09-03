@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+
 export function Footer() {
   return (
     <footer className="fixed bottom-0 left-0 right-0 w-full border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 md:py-6 z-50">

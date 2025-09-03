@@ -8,7 +8,7 @@ const Logo = ({
   className?: string;
   size?: "normal" | "small";
 }) => {
-  const sizeClasses = size === "normal" ? { width: 128, height: 128 } : { width: 40, height: 40 };
+  const sizeClasses = size === "normal" ? { width: 160, height: 160 } : { width: 48, height: 48 };
 
   return (
     <div className={cn("relative", className)} style={{ width: sizeClasses.width, height: sizeClasses.height }}>

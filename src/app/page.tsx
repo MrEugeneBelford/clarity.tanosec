@@ -429,12 +429,12 @@ export default function ClarityByTanosecPage() {
 
       const handlePrintFullReport = () => {
         storeReportPayload();
-        router.push("/full-report?action=print");
+        window.open("/full-report?action=print", "_blank", "noopener,noreferrer");
       };
 
       const handleDownloadFullReportPDF = () => {
         storeReportPayload();
-        router.push("/full-report?action=pdf");
+        window.open("/full-report?action=pdf", "_blank", "noopener,noreferrer");
       };
 
       return (

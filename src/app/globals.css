@@ -1,3 +1,8 @@
+/* Print page setup */
+@page {
+  size: A4;
+  margin: 15mm;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -141,8 +146,13 @@
 /* Constrain logo within header for PDF/print */
 .brand-logo svg,
 .brand-logo img {
-  max-height: 24px;
+  max-height: 18px;
   width: auto;
+}
+
+/* Slight breathing room at top in PDF mode */
+.pdf-mode #full-report {
+  padding-top: 6mm;
 }
 
 /* Page break helpers */
@@ -181,7 +191,7 @@
 
 /* Full Report: branding header/footer and print helpers */
 .brand-header {
-  padding: 16px 24px;
+  padding: 10px 16px;
   background: #ffffff;
   border-bottom: 1px solid #e5e5e5;
   color: #000000;

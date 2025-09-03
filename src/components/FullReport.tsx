@@ -92,7 +92,7 @@ export default function FullReport({ action }: { action?: "print" | "pdf" }) {
           const pageHeight = pdf.internal.pageSize.getHeight();
 
           // Target margins (mm)
-          const margin = 10;
+          const margin = 15;
           const printableWidth = pageWidth - margin * 2;
           const printableHeight = pageHeight - margin * 2;
 

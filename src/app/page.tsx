@@ -335,6 +335,9 @@ export default function ClarityByTanosecPage() {
 
       return (
         <div className="w-full max-w-3xl space-y-8">
+          <div className="flex justify-center mb-2">
+            <Logo size="small" />
+          </div>
           <div className="space-y-4">
             <Progress value={(step / totalQuestions) * 100} className="h-2 transition-all duration-300" />
             <p className="text-center text-sm text-muted-foreground">

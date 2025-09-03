@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
+import ShareMyScore from "@/components/share-my-score";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { questions, questionCategories } from "@/lib/questions";
@@ -477,6 +478,11 @@ export default function ClarityByTanosecPage() {
                 })}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Share score buttons */}
+          <div className="flex justify-center">
+            <ShareMyScore scorePercent={Math.round(scorePercentage)} />
           </div>
           
            <Card className="print-card">

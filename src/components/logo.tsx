@@ -13,7 +13,7 @@ const Logo = ({
   return (
     <div className={cn("relative", className)} style={{ width: sizeClasses.width, height: sizeClasses.height }}>
       <Image
-        src="https://tanosec.co.za/wp-content/uploads/2025/08/clarity_logo.png"
+        src="/icon.png"
         alt="Clarity by Tanosec Logo"
         width={sizeClasses.width}
         height={sizeClasses.height}

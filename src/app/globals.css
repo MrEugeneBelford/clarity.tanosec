@@ -60,15 +60,22 @@
 
 /* Removed legacy print styles and report-mode since Print is deprecated */
 
-/* PDF export mode: force light backgrounds and black text */
-.pdf-mode body,
-.pdf-mode #full-report,
-.pdf-mode #full-report * {
-  background: #ffffff !important;
-  color: #000000 !important;
-  border-color: #e5e7eb !important;
-  box-shadow: none !important;
-}
+/* PDF export mode: dark theme to match reference */
+.pdf-mode body { background: #0f0f10 !important; color: #f7f7f7 !important; }
+.pdf-mode #full-report { background: #0f0f10 !important; color: #f7f7f7 !important; }
+.pdf-mode #full-report * { box-shadow: none !important; }
+
+/* Cards and text */
+.pdf-mode .print-card { background: #171718 !important; border: 1px solid #2a2a2b !important; color: #e8e8e8 !important; }
+.pdf-mode .print-card-header,
+.pdf-mode .print-card-content,
+.pdf-mode .print-card-title,
+.pdf-mode .print-text,
+.pdf-mode .print-badge { color: #e8e8e8 !important; border-color: #2a2a2b !important; }
+
+/* Header/Footer */
+.pdf-mode .brand-header { background: #151516 !important; border-bottom: 1px solid #2a2a2b !important; color: #ffffff !important; }
+.pdf-mode .brand-footer { background: #151516 !important; border-top: 1px solid #2a2a2b !important; color: #cfcfcf !important; }
 
 /* Constrain logo within header for PDF/print */
 .brand-logo { display: flex; align-items: center; }

@@ -58,80 +58,7 @@
   }
 }
 
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  /* Force a light theme for print */
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-  }
-  body {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-  }
-  .print-card {
-    border: 1px solid #e5e5e5 !important;
-    box-shadow: none !important;
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    break-inside: avoid;
-  }
-  .print-card-header, .print-card-content, .print-card-title, .print-text, .print-badge {
-    color: #000000 !important;
-  }
-  .print-tabs-list {
-    display: none !important;
-  }
-  .print-tabs-content {
-    margin-top: 0 !important;
-    border-top: none !important;
-  }
-  /* Force all recommendations tabs content to be visible when printing */
-  .print-tabs-content[hidden] {
-    display: block !important;
-  }
-  .print-recommendation-title {
-    display: block !important;
-    font-size: 1.5rem;
-    font-weight: bold;
-    margin-bottom: 1rem;
-    margin-top: 1.5rem;
-  }
-  .only-print {
-    display: block !important;
-  }
-}
-
-/* Screen-only by default */
-.only-print {
-  display: none;
-}
-
-/* Report (PDF) mode mirrors print behavior while on-screen */
-.report-mode .no-print {
-  display: none !important;
-}
-.report-mode .print-tabs-list {
-  display: none !important;
-}
-.report-mode .print-tabs-content[hidden] {
-  display: block !important;
-}
-.report-mode .only-print {
-  display: block !important;
-}
-.report-mode .print-card,
-.report-mode .print-card-header,
-.report-mode .print-card-content,
-.report-mode .print-card-title,
-.report-mode .print-text,
-.report-mode .print-badge {
-  color: #000000 !important;
-}
+/* Removed legacy print styles and report-mode since Print is deprecated */
 
 /* PDF export mode: force light backgrounds and black text */
 .pdf-mode body,
@@ -163,31 +90,7 @@
   break-inside: avoid;
 }
 
-/* Print header/footer placement */
-@media print {
-  .print-header {
-    position: static; /* appears only once at top of report content */
-    padding: 16px 24px;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e5e5;
-  }
-  .print-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 8px 24px;
-    background: #ffffff;
-    border-top: 1px solid #e5e5e5;
-    font-size: 10px;
-  }
-  body {
-    margin: 0;
-  }
-  main {
-    padding-bottom: 60px !important; /* space for footer */
-  }
-}
+/* Removed print header/footer placement rules */
 
 /* Full Report: branding header/footer and print helpers */
 .brand-header {
@@ -203,15 +106,4 @@
   font-size: 10px;
   color: #000000;
 }
-@media print {
-  .brand-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-  #full-report {
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-}
+/* Removed brand-footer fixed positioning for print */

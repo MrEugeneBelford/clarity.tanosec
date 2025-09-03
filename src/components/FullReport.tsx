@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 // Types kept in sync with generate-security-recommendations.ts
 type RecPriority = "high" | "medium" | "low";
@@ -78,9 +76,6 @@ export default function FullReport({ action }: { action?: "print" | "pdf" }) {
       // Force light theme and flat backgrounds during export
       root.classList.add("pdf-mode");
       try {
-        if (action === "print") {
-          window.print();
-        }
         if (action === "pdf") {
           const el = reportRef.current;
           if (!el) return;

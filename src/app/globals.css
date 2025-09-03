@@ -128,6 +128,23 @@
   color: #000000 !important;
 }
 
+/* PDF export mode: force light backgrounds and black text */
+.pdf-mode body,
+.pdf-mode #full-report,
+.pdf-mode #full-report * {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+/* Constrain logo within header for PDF/print */
+.brand-logo svg,
+.brand-logo img {
+  max-height: 24px;
+  width: auto;
+}
+
 /* Page break helpers */
 .page-break {
   break-before: page;

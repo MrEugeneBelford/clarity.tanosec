@@ -73,41 +73,46 @@ export default function FullReport({ action }: { action?: "print" | "pdf" }) {
     if (!data || !action) return;
 
     const handle = setTimeout(async () => {
-      if (action === "print") {
-        window.print();
-      }
-      if (action === "pdf") {
-        const el = reportRef.current;
-        if (!el) return;
-        // High-res canvas capture
-        const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const root = document.documentElement;
+      // Force light theme and flat backgrounds during export
+      root.classList.add("pdf-mode");
+      try {
+        if (action === "print") {
+          window.print();
+        }
+        if (action === "pdf") {
+          const el = reportRef.current;
+          if (!el) return;
+          // High-res canvas capture with white background
+          const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+          const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
+          const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
 
-        // Fit image within A4 while preserving aspect ratio
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          // Target margins (mm)
+          const margin = 10;
+          const printableWidth = pageWidth - margin * 2;
+          const printableHeight = pageHeight - margin * 2;
 
-        let y = 0;
-        if (imgHeight <= pageHeight) {
-          pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight, undefined, "FAST");
-        } else {
-          // Add multiple pages
+          // Scale image to printable width
+          const imgWidth = printableWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
           let remainingHeight = imgHeight;
-          const chunkHeight = pageHeight;
-          let position = 0;
+          let position = 0; // in mm relative to the image top
           while (remainingHeight > 0) {
-            pdf.addImage(imgData, "JPEG", 0, -position, imgWidth, imgHeight, undefined, "FAST");
-            remainingHeight -= chunkHeight;
-            position += chunkHeight;
+            pdf.addImage(imgData, "JPEG", margin, margin - position, imgWidth, imgHeight, undefined, "FAST");
+            remainingHeight -= printableHeight;
+            position += printableHeight;
             if (remainingHeight > 0) pdf.addPage();
           }
+          const dateStr = formatDate(new Date());
+          pdf.save(`tanosec-clarity-report-${dateStr}.pdf`);
         }
-        const dateStr = formatDate(new Date());
-        pdf.save(`tanosec-clarity-report-${dateStr}.pdf`);
+      } finally {
+        root.classList.remove("pdf-mode");
       }
     }, 200);
 
@@ -130,7 +135,7 @@ export default function FullReport({ action }: { action?: "print" | "pdf" }) {
         {/* Branding Header */}
         <div className="brand-header">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 brand-logo">
               <Logo size="small" />
               <h1 className="text-xl md:text-2xl font-bold text-black">
                 Clarity Cybersecurity Assessment Report

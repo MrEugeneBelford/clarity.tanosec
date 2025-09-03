@@ -144,16 +144,16 @@
 }
 
 /* Constrain logo within header for PDF/print */
+.brand-logo { display: flex; align-items: center; }
 .brand-logo svg,
-.brand-logo img {
-  max-height: 18px;
-  width: auto;
-}
+.brand-logo img { max-height: 16px; width: auto; display: block; }
 
 /* Slight breathing room at top in PDF mode */
-.pdf-mode #full-report {
-  padding-top: 6mm;
-}
+.pdf-mode #full-report { padding-top: 12mm; padding-bottom: 12mm; }
+
+/* Reduce risk of clipping across pages during export */
+.pdf-mode .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+.pdf-mode .brand-header, .pdf-mode .brand-footer { break-inside: avoid; page-break-inside: avoid; }
 
 /* Page break helpers */
 .page-break {

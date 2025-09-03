@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import html2pdf from "html2pdf.js";
 import Logo from "@/components/logo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -83,33 +84,16 @@ export default function FullReport({ action }: { action?: "print" | "pdf" }) {
         if (action === "pdf") {
           const el = reportRef.current;
           if (!el) return;
-          // High-res canvas capture with white background
-          const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-          const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
-          const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-
-          // Target margins (mm)
-          const margin = 15;
-          const printableWidth = pageWidth - margin * 2;
-          const printableHeight = pageHeight - margin * 2;
-
-          // Scale image to printable width
-          const imgWidth = printableWidth;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-          let remainingHeight = imgHeight;
-          let position = 0; // in mm relative to the image top
-          while (remainingHeight > 0) {
-            pdf.addImage(imgData, "JPEG", margin, margin - position, imgWidth, imgHeight, undefined, "FAST");
-            remainingHeight -= printableHeight;
-            position += printableHeight;
-            if (remainingHeight > 0) pdf.addPage();
-          }
           const dateStr = formatDate(new Date());
-          pdf.save(`tanosec-clarity-report-${dateStr}.pdf`);
+          const opt = {
+            margin: 15,
+            filename: `tanosec-clarity-report-${dateStr}.pdf`,
+            image: { type: "jpeg", quality: 0.95 },
+            html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", scrollY: 0 },
+            jsPDF: { unit: "mm", format: "a4", orientation: "p" },
+            pagebreak: { mode: ["css", "legacy", "avoid-all"] },
+          } as const;
+          await html2pdf().set(opt).from(el).save();
         }
       } finally {
         root.classList.remove("pdf-mode");

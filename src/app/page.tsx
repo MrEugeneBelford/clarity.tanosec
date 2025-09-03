@@ -461,6 +461,13 @@ export default function ClarityByTanosecPage() {
                 <p className="text-muted-foreground pt-2 print-text">
                   This score reflects your cybersecurity posture based on your answers.
                 </p>
+                {/* Share inside the score card */}
+                <div className="pt-2 no-print">
+                  <p className="text-sm text-muted-foreground mb-2">Share your Results.</p>
+                  <div className="flex justify-center">
+                    <ShareMyScore scorePercent={Math.round(scorePercentage)} />
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -497,10 +504,7 @@ export default function ClarityByTanosecPage() {
             </Card>
           </div>
 
-          {/* Share score buttons */}
-          <div className="flex justify-center no-print">
-            <ShareMyScore scorePercent={Math.round(scorePercentage)} />
-          </div>
+          
           
           <Card className="print-card page-break">
             <CardHeader className="print-card-header">

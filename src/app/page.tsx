@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Shield,
   Lock,
@@ -67,6 +68,7 @@ export default function ClarityByTanosecPage() {
     useState<GenerateSecurityRecommendationsOutput | null>(null);
   const [reportMode, setReportMode] = useState(false);
   const reportRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
   const { toast } = useToast();
   const totalQuestions = questions.length;
@@ -297,7 +299,7 @@ export default function ClarityByTanosecPage() {
                   <Checkbox 
                     id="newsletter" 
                     checked={newsletterOptIn}
-                    onCheckedChange={(checked) => setNewsletterOptIn(checked as boolean)}
+                    onCheckedChange={(checked: boolean | "indeterminate") => setNewsletterOptIn(checked as boolean)}
                   />
                   <Label htmlFor="newsletter" className="text-sm font-normal text-muted-foreground cursor-pointer">
                     Yes, I'd like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
@@ -412,37 +414,27 @@ export default function ClarityByTanosecPage() {
         low: recommendations.recommendations.filter((r) => r.priority === "low"),
       };
 
-      const handlePrintReport = () => {
-        setReportMode(true);
-        // Wait a tick to let DOM update, then print
-        setTimeout(() => {
-          window.print();
-          // Exit report mode after print
-          setTimeout(() => setReportMode(false), 300);
-        }, 50);
+      const storeReportPayload = () => {
+        try {
+          const payload = {
+            score,
+            maxScore,
+            categoryScores,
+            recommendations,
+            generatedAt: new Date().toISOString(),
+          };
+          localStorage.setItem("clarity_full_report_payload", JSON.stringify(payload));
+        } catch {}
       };
 
-      const handleDownloadPDF = async () => {
-        setReportMode(true);
-        try {
-          const html2pdf = (await import("html2pdf.js")).default;
-          const element = reportRef.current;
-          if (!element) return;
-          const today = new Date();
-          const dateStr = today.toISOString().split("T")[0];
-          const fileName = `tanosec-clarity-report-${dateStr}.pdf`;
-          const opt = {
-            margin:       [10, 10, 10, 10],
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.95 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['css', 'legacy'] },
-          } as any;
-          await html2pdf().set(opt).from(element).save();
-        } finally {
-          setTimeout(() => setReportMode(false), 300);
-        }
+      const handlePrintFullReport = () => {
+        storeReportPayload();
+        router.push("/full-report?action=print");
+      };
+
+      const handleDownloadFullReportPDF = () => {
+        storeReportPayload();
+        router.push("/full-report?action=pdf");
       };
 
       return (
@@ -453,10 +445,10 @@ export default function ClarityByTanosecPage() {
                 <h1 className="text-3xl font-headline">Your Security Report</h1>
               </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handlePrintReport}>
+              <Button variant="outline" onClick={handlePrintFullReport}>
                 <Printer className="mr-2" /> Print Report
               </Button>
-              <Button variant="outline" onClick={handleDownloadPDF}>
+              <Button variant="outline" onClick={handleDownloadFullReportPDF}>
                 <FileText className="mr-2" /> Download PDF
               </Button>
               <Button onClick={handleRestart}>Start Over</Button>

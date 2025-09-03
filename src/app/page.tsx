@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   Shield,
   Lock,
@@ -65,6 +65,8 @@ export default function ClarityByTanosecPage() {
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [recommendations, setRecommendations] =
     useState<GenerateSecurityRecommendationsOutput | null>(null);
+  const [reportMode, setReportMode] = useState(false);
+  const reportRef = useRef<HTMLDivElement | null>(null);
 
   const { toast } = useToast();
   const totalQuestions = questions.length;
@@ -410,26 +412,71 @@ export default function ClarityByTanosecPage() {
         low: recommendations.recommendations.filter((r) => r.priority === "low"),
       };
 
+      const handlePrintReport = () => {
+        setReportMode(true);
+        // Wait a tick to let DOM update, then print
+        setTimeout(() => {
+          window.print();
+          // Exit report mode after print
+          setTimeout(() => setReportMode(false), 300);
+        }, 50);
+      };
+
+      const handleDownloadPDF = async () => {
+        setReportMode(true);
+        try {
+          const html2pdf = (await import("html2pdf.js")).default;
+          const element = reportRef.current;
+          if (!element) return;
+          const today = new Date();
+          const dateStr = today.toISOString().split("T")[0];
+          const fileName = `tanosec-clarity-report-${dateStr}.pdf`;
+          const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.95 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'] },
+          } as any;
+          await html2pdf().set(opt).from(element).save();
+        } finally {
+          setTimeout(() => setReportMode(false), 300);
+        }
+      };
+
       return (
-        <div className="w-full max-w-5xl space-y-8 animate-fade-in">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-             <div className="flex items-center gap-4">
-               <Logo size="small" />
-               <h1 className="text-3xl font-headline">Your Security Report</h1>
-             </div>
-            <div className="flex gap-2 no-print">
-              <Button variant="outline" onClick={() => window.print()}>
+        <div className={cn("w-full max-w-5xl space-y-8 animate-fade-in", reportMode && "report-mode")}>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 no-print">
+              <div className="flex items-center gap-4">
+                <Logo size="small" />
+                <h1 className="text-3xl font-headline">Your Security Report</h1>
+              </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handlePrintReport}>
                 <Printer className="mr-2" /> Print Report
               </Button>
-              <Button
-                onClick={handleRestart}
-              >
-                Start Over
+              <Button variant="outline" onClick={handleDownloadPDF}>
+                <FileText className="mr-2" /> Download PDF
               </Button>
+              <Button onClick={handleRestart}>Start Over</Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div ref={reportRef}>
+          {/* Report Header (print/report-mode only) */}
+          <div className="print-header only-print">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Logo size="small" />
+                <h1 className="text-xl font-bold text-black">Clarity Cybersecurity Assessment Report</h1>
+              </div>
+              <div className="text-sm text-black">
+                Date: {new Date().toLocaleDateString()} | Score: {Math.round(scorePercentage)}/100
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
             <Card className="lg:col-span-1 print-card">
               <CardHeader className="print-card-header">
                 <CardTitle className="text-2xl print-card-title">Overall Security Score</CardTitle>
@@ -481,11 +528,11 @@ export default function ClarityByTanosecPage() {
           </div>
 
           {/* Share score buttons */}
-          <div className="flex justify-center">
+          <div className="flex justify-center no-print">
             <ShareMyScore scorePercent={Math.round(scorePercentage)} />
           </div>
           
-           <Card className="print-card">
+          <Card className="print-card page-break">
             <CardHeader className="print-card-header">
               <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
                 <Sparkles className="text-primary" /> AI-Powered Summary
@@ -511,7 +558,7 @@ export default function ClarityByTanosecPage() {
           </Card>
 
 
-          <Card className="print-card">
+          <Card className="print-card page-break">
             <CardHeader className="print-card-header">
               <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
                 <Sparkles className="text-primary" /> AI-Powered Recommendations
@@ -522,7 +569,7 @@ export default function ClarityByTanosecPage() {
             </CardHeader>
             <CardContent className="print-card-content">
               <Tabs defaultValue="high" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 no-print">
+                <TabsList className="grid w-full grid-cols-3 no-print print-tabs-list">
                   <TabsTrigger value="high">High Priority</TabsTrigger>
                   <TabsTrigger value="medium">Medium Priority</TabsTrigger>
                   <TabsTrigger value="low">Low Priority</TabsTrigger>
@@ -567,7 +614,7 @@ export default function ClarityByTanosecPage() {
             </CardContent>
           </Card>
           
-          <Card className="print-card">
+          <Card className="print-card page-break">
             <CardHeader className="print-card-header">
               <CardTitle className="text-2xl print-card-title">Contact Tanosec Cybersecurity</CardTitle>
               <CardDescription className="print-text">We're here to help you implement your recommendations.</CardDescription>
@@ -577,7 +624,14 @@ export default function ClarityByTanosecPage() {
               <p className="print-text"><strong>Email:</strong> clarity@tanosec.co.za</p>
             </CardContent>
           </Card>
-
+          {/* Report Footer (print/report-mode only) */}
+          <div className="print-footer only-print">
+            <div className="flex items-center justify-between">
+              <span>Tanosec Cybersecurity – https://tanosec.co.za</span>
+              <span>Confidential – generated by Tanosec Clarity</span>
+            </div>
+          </div>
+          </div>
           <Card className="bg-gradient-to-r from-primary/20 to-accent/20 no-print">
             <CardHeader>
               <CardTitle>Ready to take the next step?</CardTitle>

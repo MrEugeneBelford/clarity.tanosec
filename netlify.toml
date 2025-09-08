@@ -6,11 +6,9 @@
   NODE_VERSION = "20"
   NPM_VERSION = "10"
 
-# Handle Next.js routing
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+## Note: Do NOT add a SPA catch-all redirect for Next.js
+## Next on Netlify handles routing internally. A catch-all redirect to index.html would
+## cause images and other assets to serve HTML, leading to "not a valid image" errors.
 
 # Handle Next.js static assets
 [[headers]]

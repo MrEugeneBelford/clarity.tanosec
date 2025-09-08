@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import icon from "@/app/icon.png";
 
 const Logo = ({
   className,
@@ -13,7 +14,7 @@ const Logo = ({
   return (
     <div className={cn("relative", className)} style={{ width: sizeClasses.width, height: sizeClasses.height }}>
       <Image
-        src="/icon.png"
+        src={icon}
         alt="Clarity by Tanosec Logo"
         width={sizeClasses.width}
         height={sizeClasses.height}

@@ -13,10 +13,7 @@ export async function GET(request: NextRequest) {
           success: false, 
           error: 'OPENROUTER_API_KEY is not set',
           message: 'Please configure the OPENROUTER_API_KEY environment variable in Netlify',
-          debug: {
-            envVars: Object.keys(process.env).filter(key => key.includes('OPENROUTER')),
-            hasApiKey: false
-          }
+          // do not include env var details for security
         },
         { status: 500 }
       );
@@ -27,7 +24,8 @@ export async function GET(request: NextRequest) {
       { role: 'user' as const, content: 'You are a helpful assistant. Say "Hello, OpenRouter is working!"' }
     ];
 
-    console.log('Testing OpenRouter with API key:', apiKey.substring(0, 10) + '...');
+    // Avoid logging sensitive API key details
+    console.log('Testing OpenRouter with API key: [REDACTED]');
     console.log('Using model: google/gemma-3n-e2b-it:free');
 
     // Try client library first
@@ -48,11 +46,7 @@ export async function GET(request: NextRequest) {
         response: response.content,
         apiKeyConfigured: true,
         method: method,
-        model: 'google/gemma-3n-e2b-it:free',
-        debug: {
-          apiKeyLength: apiKey.length,
-          apiKeyPrefix: apiKey.substring(0, 10) + '...'
-        }
+        model: 'google/gemma-3n-e2b-it:free'
       });
     } else {
       return NextResponse.json({
@@ -61,11 +55,7 @@ export async function GET(request: NextRequest) {
         message: 'Both OpenRouter methods failed',
         apiKeyConfigured: true,
         method: method,
-        model: 'google/gemma-3n-e2b-it:free',
-        debug: {
-          apiKeyLength: apiKey.length,
-          apiKeyPrefix: apiKey.substring(0, 10) + '...'
-        }
+        model: 'google/gemma-3n-e2b-it:free'
       }, { status: 500 });
     }
   } catch (error) {
@@ -74,10 +64,7 @@ export async function GET(request: NextRequest) {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       message: 'Failed to test OpenRouter integration',
-      debug: {
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        stack: error instanceof Error ? error.stack : undefined
-      }
+      // omit stack traces in responses to avoid leaking internals
     }, { status: 500 });
   }
 }

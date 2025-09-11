@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import html2pdf from "html2pdf.js";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import Logo from "@/components/logo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -80,15 +81,42 @@ export default function FullReport({ action }: { action?: "print" | "pdf" }) {
           const el = reportRef.current;
           if (!el) return;
           const dateStr = formatDate(new Date());
-          const opt = {
-            margin: 10,
-            filename: `tanosec-clarity-report-${dateStr}.pdf`,
-            image: { type: "jpeg", quality: 0.92 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: "#0f0f10", scrollY: 0 },
-            jsPDF: { unit: "mm", format: "a4", orientation: "p" },
-            pagebreak: { mode: ["css", "legacy", "avoid-all"] },
-          } as const;
-          await html2pdf().set(opt).from(el).save();
+          // Render element to canvas at higher scale for quality
+          const canvas = await html2canvas(el, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#0f0f10",
+            scrollY: 0,
+          });
+
+          const imgData = canvas.toDataURL("image/jpeg", 0.92);
+          const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "p" });
+
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+
+          const margin = 10;
+          const imgWidth = pageWidth - margin * 2; // margins
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          const pageContentHeight = pageHeight - margin * 2;
+
+          // Place the full image once, then shift it upward on subsequent pages
+          let heightLeft = imgHeight;
+          let position = margin; // initial top margin
+
+          pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+          heightLeft -= pageContentHeight;
+
+          while (heightLeft > 0) {
+            pdf.addPage();
+            // Shift image up by the height of previous visible content
+            position = margin - (imgHeight - heightLeft);
+            pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+            heightLeft -= pageContentHeight;
+          }
+
+          pdf.save(`tanosec-clarity-report-${dateStr}.pdf`);
         }
       } finally {
         root.classList.remove("pdf-mode");

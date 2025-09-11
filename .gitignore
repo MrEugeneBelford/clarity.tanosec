@@ -23,6 +23,15 @@
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*service-account*.json
+*credentials*.json
+*key*.json
+tanosec-clarity-*.json
 
 # debug
 npm-debug.log*

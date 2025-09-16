@@ -135,3 +135,8 @@
   color: #000000;
 }
 /* Removed brand-footer fixed positioning for print */
+
+/* Footer safety overrides to prevent accidental fixed positioning overlapping content */
+@layer base {
+  footer.fixed { position: static !important; inset: auto !important; }
+}

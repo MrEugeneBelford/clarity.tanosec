@@ -626,7 +626,7 @@ export default function ClarityByTanosecPage() {
   };
 
   return (
-    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-center p-4 md:p-8 pb-24 font-body">
+    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body">
       {renderContent()}
     </div>
   );

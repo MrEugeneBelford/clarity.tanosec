@@ -3,9 +3,9 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="w-full border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-4 md:py-6">
+    <footer className="w-full border-t bg-background py-4 md:py-6 mt-6 md:mt-8 md:bg-background/80 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+        <div className="flex flex-col items-center justify-between gap-4 md:flex-row pb-[env(safe-area-inset-bottom)]">
           <p className="text-sm text-muted-foreground">
             Copyright © {new Date().getFullYear()} Tanosec Cybersecurity. All rights reserved.
           </p>

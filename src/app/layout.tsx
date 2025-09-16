@@ -24,8 +24,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={cn("font-body antialiased flex flex-col min-h-screen", inter.variable)}>
-        <main className="flex-1 pb-24">
+      <body className={cn("font-body antialiased flex flex-col min-h-svh", inter.variable)}>
+        <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+2rem)] md:pb-24">
           {children}
         </main>
         <Footer />

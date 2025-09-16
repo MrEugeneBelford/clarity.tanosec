@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={cn("font-body antialiased flex flex-col min-h-screen", inter.variable)}>
-        <main className="flex-1 pb-6 md:pb-24">
+        <main className="flex-1 pb-24">
           {children}
         </main>
         <Footer />

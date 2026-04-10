@@ -71,7 +71,7 @@ Please analyze these responses and provide cybersecurity recommendations.`;
           parsedResponse: parsedResponse,
           rawResponse: response.content,
           method: method,
-          model: 'llama3-8b-8192'
+          model: 'llama-3.1-8b-instant'
         });
       } catch (parseError) {
         console.error('Failed to parse response:', parseError);

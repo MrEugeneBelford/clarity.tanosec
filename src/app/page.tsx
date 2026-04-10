@@ -242,6 +242,11 @@ export default function ClarityByTanosecPage() {
         })
         .catch((error) => {
           console.error("Failed to get recommendations:", error);
+          console.error("Error details:", {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : null,
+            assessmentResponseCount: Object.keys(answers).length
+          });
           toast({
             variant: "destructive",
             title: "AI recommendations unavailable",

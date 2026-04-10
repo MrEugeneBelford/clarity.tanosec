@@ -75,8 +75,14 @@ async function getRecommendationsWithRetry(
 ): Promise<GenerateSecurityRecommendationsOutput> {
   try {
     return await getRecommendations({ assessmentResponses });
-  } catch {
-    return getRecommendations({ assessmentResponses });
+  } catch (error) {
+    console.log('First attempt failed, retrying...', error);
+    try {
+      return await getRecommendations({ assessmentResponses });
+    } catch (retryError) {
+      console.error('Both attempts failed:', retryError);
+      throw retryError;
+    }
   }
 }
 

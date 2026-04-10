@@ -58,6 +58,28 @@ const categoryIcons: Record<string, React.ElementType> = {
   compliance: Target,
 };
 
+const FALLBACK_RECOMMENDATIONS: GenerateSecurityRecommendationsOutput = {
+  risks: ["Unable to generate AI risk analysis at this time."],
+  strengths: ["Assessment responses were captured successfully."],
+  recommendations: [
+    {
+      recommendation:
+        "Review your lowest-scoring security domains first and prioritize basic controls such as patching, MFA, backups, and staff awareness training.",
+      priority: "high",
+    },
+  ],
+};
+
+async function getRecommendationsWithRetry(
+  assessmentResponses: Record<string, string>
+): Promise<GenerateSecurityRecommendationsOutput> {
+  try {
+    return await getRecommendations({ assessmentResponses });
+  } catch {
+    return getRecommendations({ assessmentResponses });
+  }
+}
+
 export default function ClarityByTanosecPage() {
   const [step, setStep] = useState(0); // 0=start, 1-n=questions, n+1=loading, n+2=email, n+3=results
   const [answers, setAnswers] = useState<Answers>({});
@@ -207,7 +229,7 @@ export default function ClarityByTanosecPage() {
         {} as Record<string, string>
       );
 
-      getRecommendations({ assessmentResponses })
+      getRecommendationsWithRetry(assessmentResponses)
         .then((result) => {
           setRecommendations(result);
           setStep(totalQuestions + 2);
@@ -216,10 +238,11 @@ export default function ClarityByTanosecPage() {
           console.error("Failed to get recommendations:", error);
           toast({
             variant: "destructive",
-            title: "Error",
-            description: "Could not generate recommendations. Please try again.",
+            title: "AI recommendations unavailable",
+            description: "Showing a fallback report so you can continue.",
           });
-          handleRestart();
+          setRecommendations(FALLBACK_RECOMMENDATIONS);
+          setStep(totalQuestions + 2);
         });
     }
   }, [isLoading, answers, totalQuestions, toast]);
@@ -249,7 +272,7 @@ export default function ClarityByTanosecPage() {
             </Button>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground justify-center">
-            <p>Takes approximately 5 minutes to complete.</p>
+            <p>Takes approximately 2 minutes to complete.</p>
           </CardFooter>
         </Card>
       );

@@ -68,10 +68,13 @@ export async function generateOpenRouterResponse(
     const convertedMessages = convertMessagesForGoogleModel(messages);
     console.log('Converted messages for Google model:', convertedMessages.length);
     
+    const boundedTemperature = Math.max(0, Math.min(1, temperature));
+    const boundedMaxTokens = Math.max(1, Math.min(4000, maxTokens));
+
     const response = await openrouter.chat(convertedMessages, {
       model: 'google/gemma-3n-e2b-it:free', // Use the Google Gemma model
-      temperature,
-      max_tokens: maxTokens,
+      temperature: boundedTemperature,
+      max_tokens: boundedMaxTokens,
     });
     
     console.log('OpenRouter response received:', response.success);

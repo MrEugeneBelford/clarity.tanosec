@@ -62,21 +62,33 @@ export async function generateOpenRouterResponseDirect(
     const convertedMessages = convertMessagesForGoogleModel(messages);
     console.log('Converted messages for Google model (direct):', convertedMessages.length);
     
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.netlify.app',
-        'X-Title': 'Clarity by Tanosec'
-      },
-      body: JSON.stringify({
-        model: 'google/gemma-3n-e2b-it:free',
-        messages: convertedMessages,
-        temperature: temperature,
-        max_tokens: maxTokens
-      })
-    });
+    const boundedTemperature = Math.max(0, Math.min(1, temperature));
+    const boundedMaxTokens = Math.max(1, Math.min(4000, maxTokens));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const response = await (async () => {
+      try {
+        return await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.netlify.app',
+            'X-Title': 'Clarity by Tanosec'
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: 'google/gemma-3n-e2b-it:free',
+            messages: convertedMessages,
+            temperature: boundedTemperature,
+            max_tokens: boundedMaxTokens
+          })
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+    })();
 
     if (!response.ok) {
       const errorText = await response.text();

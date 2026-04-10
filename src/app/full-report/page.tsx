@@ -1,6 +1,14 @@
 import FullReport from "@/components/FullReport";
 
-export default function FullReportPage({ searchParams }: { searchParams: { action?: string } }) {
-  const action = (searchParams?.action === "print" || searchParams?.action === "pdf") ? (searchParams.action as "print" | "pdf") : undefined;
+export default async function FullReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ action?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const action =
+    resolvedSearchParams?.action === "print" || resolvedSearchParams?.action === "pdf"
+      ? (resolvedSearchParams.action as "print" | "pdf")
+      : undefined;
   return <FullReport action={action} />;
 }

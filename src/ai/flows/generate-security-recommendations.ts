@@ -43,6 +43,9 @@ export type GenerateSecurityRecommendationsOutput = z.infer<
   typeof GenerateSecurityRecommendationsOutputSchema
 >;
 
+const MAX_ASSESSMENT_RESPONSES = 200;
+const MAX_PROMPT_CHARS = 12000;
+
 export async function generateSecurityRecommendations(
   input: GenerateSecurityRecommendationsInput
 ): Promise<GenerateSecurityRecommendationsOutput> {
@@ -52,7 +55,11 @@ export async function generateSecurityRecommendations(
 const generateSecurityRecommendationsFlow = async (
   input: GenerateSecurityRecommendationsInput
 ): Promise<GenerateSecurityRecommendationsOutput> => {
-  console.log('Starting security recommendations flow with', Object.keys(input.assessmentResponses).length, 'responses');
+  const responseCount = Object.keys(input.assessmentResponses).length;
+  console.log('Starting security recommendations flow with', responseCount, 'responses');
+  if (responseCount > MAX_ASSESSMENT_RESPONSES) {
+    throw new Error('Too many assessment responses submitted.');
+  }
   
   const systemPrompt = `You are an expert cybersecurity advisor for small and medium size enterprises (SMEs).
 Based on the SME's responses to a cybersecurity self-assessment, you will provide personalized and actionable recommendations.
@@ -82,6 +89,10 @@ ${Object.entries(input.assessmentResponses)
 
 Please analyze these responses and provide cybersecurity recommendations in the exact JSON format specified.`;
 
+  if (userPrompt.length > MAX_PROMPT_CHARS) {
+    throw new Error('Assessment responses are too large to process safely.');
+  }
+
   const messages: OpenRouterMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
@@ -103,7 +114,6 @@ Please analyze these responses and provide cybersecurity recommendations in the 
   }
 
   console.log('OpenRouter API succeeded, parsing response...');
-  console.log('Raw response content:', response.content);
   
   try {
     // Try to extract JSON from the response (in case there's extra text)
@@ -124,7 +134,6 @@ Please analyze these responses and provide cybersecurity recommendations in the 
     return validatedResponse;
   } catch (error) {
     console.error('Failed to parse or validate OpenRouter response:', error);
-    console.error('Raw response content:', response.content);
     
     // Return a fallback response if parsing fails
     return {

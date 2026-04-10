@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateOpenRouterResponse } from '@/ai/openrouter';
 import { generateOpenRouterResponseDirect } from '@/ai/openrouter-direct';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+    }
+
     // Check if API key is available
     const apiKey = process.env.OPENROUTER_API_KEY;
     

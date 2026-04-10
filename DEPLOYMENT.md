@@ -6,7 +6,7 @@ This application is configured for deployment on Netlify.
 
 - A Netlify account
 - Node.js 20+ (Netlify will use this automatically)
-- OpenRouter API key for AI functionality
+- Groq API key for AI functionality
 
 ## Deployment Steps
 
@@ -29,12 +29,12 @@ Netlify will automatically detect the build settings from `netlify.toml`:
 In your Netlify dashboard, go to Site settings → Environment variables and add:
 
 ```
-OPENROUTER_API_KEY=your_openrouter_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
 NEXT_PUBLIC_APP_URL=https://your-app-name.netlify.app
 ```
 
-**Getting an OpenRouter API Key:**
-1. Go to [openrouter.ai](https://openrouter.ai)
+**Getting a Groq API Key:**
+1. Go to [groq.com](https://groq.com)
 2. Sign up for an account
 3. Navigate to your API keys section
 4. Create a new API key
@@ -62,30 +62,30 @@ The application will be available at `http://localhost:9002`
 - **If you encounter build errors**, check that your Node.js version is 18+ locally
 - **Ensure all environment variables are set in Netlify**
 - **Check the build logs in Netlify for any specific errors**
-- **Verify your OpenRouter API key is valid and has sufficient credits**
+- **Verify your Groq API key is valid and has sufficient credits**
 
-### Testing OpenRouter Integration
+### Testing Groq Integration
 
-After deployment, you can test if OpenRouter is working correctly by visiting:
+After deployment, you can test if Groq is working correctly by visiting:
 ```
-https://your-app-name.netlify.app/api/test-openrouter
+https://your-app-name.netlify.app/api/test-assessment
 ```
 
 This will return:
-- ✅ **Success**: If OpenRouter is configured correctly
+- ✅ **Success**: If Groq is configured correctly
 - ❌ **Error**: If there are configuration issues
 
 ### Debugging Steps
 
-1. **Check Environment Variables**: Ensure `OPENROUTER_API_KEY` is set in Netlify
+1. **Check Environment Variables**: Ensure `GROQ_API_KEY` is set in Netlify
 2. **Test API Key**: Visit the test endpoint above
 3. **Check Netlify Logs**: Look at function logs in Netlify dashboard
-4. **Verify OpenRouter Account**: Ensure your OpenRouter account has credits
-5. **Check API Limits**: OpenRouter has rate limits and usage quotas
+4. **Verify Groq Account**: Ensure your Groq account has access
+5. **Check API Limits**: Groq has rate limits and usage quotas
 
 ### Error Messages
 
-- **"OpenRouter API key is not configured"**: Set the `OPENROUTER_API_KEY` environment variable
-- **"OpenRouter API error"**: Check your API key validity and account status
+- **"Groq API key is not configured"**: Set the `GROQ_API_KEY` environment variable
+- **"Groq API error"**: Check your API key validity and account status
 - **"Failed to parse AI response"**: The AI response format was invalid (rare)
 - **"Could not generate recommendations"**: General error, check logs for details

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateOpenRouterResponse } from '@/ai/openrouter';
-import { generateOpenRouterResponseDirect } from '@/ai/openrouter-direct';
+import { generateGroqResponse } from '@/ai/groq';
 
 export async function POST(_request: NextRequest) {
   try {
@@ -9,13 +8,13 @@ export async function POST(_request: NextRequest) {
     }
 
     // Check if API key is available
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     
     if (!apiKey) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'OPENROUTER_API_KEY is not set'
+          error: 'GROQ_API_KEY is not set'
         },
         { status: 500 }
       );
@@ -53,21 +52,14 @@ Please analyze these responses and provide cybersecurity recommendations.`;
       { role: 'user' as const, content: userPrompt }
     ];
 
-    console.log('Testing assessment flow with OpenRouter...');
+    console.log('Testing assessment flow with Groq...');
 
-    // Try client library first
-    let response = await generateOpenRouterResponse(messages, 0.7, 2000);
-    let method = 'client-library';
-
-    // If client library fails, try direct API
-    if (!response.success) {
-      console.log('Client library failed, trying direct API...');
-      response = await generateOpenRouterResponseDirect(messages, 0.7, 2000);
-      method = 'direct-api';
-    }
+    // Call Groq API
+    const response = await generateGroqResponse(messages, 0.7, 2000);
+    const method = 'groq-api';
 
     if (response.success) {
-      console.log('OpenRouter API succeeded, attempting to parse response...');
+      console.log('Groq API succeeded, attempting to parse response...');
       
       try {
         const parsedResponse = JSON.parse(response.content);
@@ -79,7 +71,7 @@ Please analyze these responses and provide cybersecurity recommendations.`;
           parsedResponse: parsedResponse,
           rawResponse: response.content,
           method: method,
-          model: 'google/gemma-3n-e2b-it:free'
+          model: 'llama3-8b-8192'
         });
       } catch (parseError) {
         console.error('Failed to parse response:', parseError);
@@ -95,7 +87,7 @@ Please analyze these responses and provide cybersecurity recommendations.`;
       return NextResponse.json({
         success: false,
         error: response.error,
-        message: 'OpenRouter API call failed',
+        message: 'Groq API call failed',
         method: method
       }, { status: 500 });
     }

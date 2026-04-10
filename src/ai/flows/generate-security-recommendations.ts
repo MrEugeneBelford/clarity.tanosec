@@ -9,8 +9,7 @@
  */
 
 import {z} from 'genkit';
-import {generateOpenRouterResponse, OpenRouterMessage} from '@/ai/openrouter';
-import {generateOpenRouterResponseDirect} from '@/ai/openrouter-direct';
+import {generateGroqResponse, GroqMessage} from '@/ai/groq';
 
 const GenerateSecurityRecommendationsInputSchema = z.object({
   assessmentResponses: z
@@ -93,27 +92,21 @@ Please analyze these responses and provide cybersecurity recommendations in the 
     throw new Error('Assessment responses are too large to process safely.');
   }
 
-  const messages: OpenRouterMessage[] = [
+  const messages: GroqMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
   ];
 
-  console.log('Calling OpenRouter API...');
+  console.log('Calling Groq API...');
   
-  // Try the client library first, then fallback to direct API
-  let response = await generateOpenRouterResponse(messages, 0.7, 2000);
-  
-  if (!response.success) {
-    console.log('Client library failed, trying direct API call...');
-    response = await generateOpenRouterResponseDirect(messages, 0.7, 2000);
-  }
+  const response = await generateGroqResponse(messages, 0.7, 2000);
 
   if (!response.success) {
-    console.error('Both OpenRouter methods failed:', response.error);
-    throw new Error(`OpenRouter API error: ${response.error}`);
+    console.error('Groq API failed:', response.error);
+    throw new Error(`Groq API error: ${response.error}`);
   }
 
-  console.log('OpenRouter API succeeded, parsing response...');
+  console.log('Groq API succeeded, parsing response...');
   
   try {
     // Try to extract JSON from the response (in case there's extra text)
@@ -133,7 +126,7 @@ Please analyze these responses and provide cybersecurity recommendations in the 
     
     return validatedResponse;
   } catch (error) {
-    console.error('Failed to parse or validate OpenRouter response:', error);
+    console.error('Failed to parse or validate Groq response:', error);
     
     // Return a fallback response if parsing fails
     return {

@@ -15,6 +15,17 @@ const GenerateSecurityRecommendationsInputSchema = z.object({
   assessmentResponses: z
     .record(z.string(), z.string())
     .describe('A record of assessment responses, where the key is the question ID and the value is the response.'),
+  overallScorePercent: z.number().optional().describe('The calculated overall score as a percentage (0-100).'),
+  categoryScores: z.record(
+    z.string(),
+    z.object({
+      score: z.number(),
+      maxScore: z.number(),
+      percentage: z.number(),
+    })
+  ).optional().describe('Per-category score breakdown.'),
+  sector: z.string().optional().describe('The business sector if provided.'),
+  companySize: z.string().optional().describe('The company size band if provided.'),
 });
 
 export type GenerateSecurityRecommendationsInput = z.infer<
@@ -60,14 +71,13 @@ const generateSecurityRecommendationsFlow = async (
     throw new Error('Too many assessment responses submitted.');
   }
   
-  const systemPrompt = `You are an expert cybersecurity advisor for small and medium size enterprises (SMEs).
-Based on the SME's responses to a cybersecurity self-assessment, you will provide personalized and actionable recommendations.
+  const systemPrompt = `You are a senior cybersecurity advisor specialising in South African small and medium enterprises (SMEs). You work for Tanosec Cybersecurity, a Bloemfontein-based firm whose tagline is "Think Like a Hacker, Secure Like a Pro."
 
-Your response should be simplified for smaller, non-enterprise companies.
+Your role is to analyse a business's cybersecurity self-assessment results and deliver sharp, practical, South Africa-specific recommendations. You understand the local threat landscape: SIM swap fraud, SASSA/SAPO phishing campaigns, load shedding impacts on UPS and backup systems, POPIA compliance obligations, and the resource constraints of Free State SMEs.
 
-Based on this user's cybersecurity assessment, identify their top risks and strengths. Then, recommend tailored actions for the business to take. Prioritize recommendations into high, medium, and low priority action items.
+Your tone is direct, knowledgeable, and no-nonsense — like a trusted expert, not a corporate drone. Avoid generic global cybersecurity advice. Make it real, make it local, make it actionable.
 
-IMPORTANT: You must respond with ONLY a valid JSON object in this exact format:
+IMPORTANT: You must respond with ONLY a valid JSON object in this exact format, no text before or after:
 {
   "risks": ["risk1", "risk2", "risk3"],
   "strengths": ["strength1", "strength2", "strength3"],
@@ -79,14 +89,30 @@ IMPORTANT: You must respond with ONLY a valid JSON object in this exact format:
   ]
 }
 
-Do not include any text before or after the JSON object.`;
+Rules:
+- risks: 3-5 items. Be specific. Reference the actual weak areas from the scores, not generic statements.
+- strengths: 2-4 items. Acknowledge what they're doing well. Be genuine.
+- recommendations: 5-8 items total, mix of high/medium/low priority. Each must be a concrete action, not a vague suggestion. Where relevant, mention POPIA, South African context, or practical cost-effective solutions available locally.
+- priority must be exactly "high", "medium", or "low"`;
 
-  const userPrompt = `Assessment Responses:
+  const categoryBreakdown = Object.entries(input.categoryScores || {})
+    .map(([cat, scores]) => `  ${cat}: ${scores.score}/${scores.maxScore} (${Math.round(scores.percentage)}%)`)
+    .join('\n');
+
+  const userPrompt = `BUSINESS ASSESSMENT SUMMARY
+Overall Score: ${input.overallScorePercent?.toFixed(0) ?? 'Unknown'}%
+${input.sector ? `Sector: ${input.sector}` : ''}
+${input.companySize ? `Company size: ${input.companySize}` : ''}
+
+CATEGORY SCORES:
+${categoryBreakdown}
+
+DETAILED RESPONSES:
 ${Object.entries(input.assessmentResponses)
-  .map(([key, value]) => `${key}: ${value}`)
-  .join('\n')}
+  .map(([question, answer]) => `Q: ${question}\nA: ${answer}`)
+  .join('\n\n')}
 
-Please analyze these responses and provide cybersecurity recommendations in the exact JSON format specified.`;
+Analyse the above and provide your cybersecurity assessment in the required JSON format. Focus your recommendations on the weakest categories and be specific to this business's actual answers.`;
 
   if (userPrompt.length > MAX_PROMPT_CHARS) {
     throw new Error('Assessment responses are too large to process safely.');

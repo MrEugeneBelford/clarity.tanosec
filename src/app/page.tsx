@@ -15,10 +15,10 @@ import {
   Laptop,
   TrendingUp,
   Target,
-  FileText,
   CalendarClock,
   ThumbsDown,
   ThumbsUp,
+  Mail,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,9 +38,17 @@ import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
 import ShareMyScore from "@/components/share-my-score";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { questions, questionCategories } from "@/lib/questions";
 import { getRecommendations } from "@/lib/actions";
+import { saveLeadCapture, emailReport } from "@/lib/leadActions";
 import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -59,26 +67,48 @@ const categoryIcons: Record<string, React.ElementType> = {
 };
 
 const FALLBACK_RECOMMENDATIONS: GenerateSecurityRecommendationsOutput = {
-  risks: ["Unable to generate AI risk analysis at this time."],
-  strengths: ["Assessment responses were captured successfully."],
+  risks: [
+    "No formal incident response plan — you won't know what to do when (not if) a breach happens",
+    "Employee security awareness is likely your biggest unmanaged risk",
+    "Unpatched systems and weak passwords remain the #1 entry point for attackers targeting SA SMEs",
+  ],
+  strengths: [
+    "You've taken the first step by completing this assessment — most businesses never do",
+    "Awareness of your security posture is the foundation of improvement",
+  ],
   recommendations: [
     {
-      recommendation:
-        "Review your lowest-scoring security domains first and prioritize basic controls such as patching, MFA, backups, and staff awareness training.",
+      recommendation: "Enable Multi-Factor Authentication on all email accounts and critical systems immediately. This single step blocks over 90% of credential-based attacks.",
       priority: "high",
+    },
+    {
+      recommendation: "Ensure all business data is backed up daily to an offsite or cloud location, and test restoring a backup at least quarterly.",
+      priority: "high",
+    },
+    {
+      recommendation: "Run a staff awareness session covering phishing, SIM swap fraud, and SARS/SAPO impersonation scams — the most common vectors targeting South African businesses.",
+      priority: "high",
+    },
+    {
+      recommendation: "Appoint a nominated POPIA Information Officer and document what personal data your business holds and why.",
+      priority: "medium",
+    },
+    {
+      recommendation: "Book a free consultation with Tanosec to get a prioritised remediation roadmap specific to your business.",
+      priority: "medium",
     },
   ],
 };
 
 async function getRecommendationsWithRetry(
-  assessmentResponses: Record<string, string>
+  payload: Parameters<typeof getRecommendations>[0]
 ): Promise<GenerateSecurityRecommendationsOutput> {
   try {
-    return await getRecommendations({ assessmentResponses });
+    return await getRecommendations(payload);
   } catch (error) {
     console.log('First attempt failed, retrying...', error);
     try {
-      return await getRecommendations({ assessmentResponses });
+      return await getRecommendations(payload);
     } catch (retryError) {
       console.error('Both attempts failed:', retryError);
       throw retryError;
@@ -91,9 +121,32 @@ export default function ClarityByTanosecPage() {
   const [answers, setAnswers] = useState<Answers>({});
   const [email, setEmail] = useState("");
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
+  const [sector, setSector] = useState<string>('');
+  const [companySize, setCompanySize] = useState<string>('');
   const [recommendations, setRecommendations] =
     useState<GenerateSecurityRecommendationsOutput | null>(null);
-  // Legacy report/print mode removed
+  const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+
+  // Restore answers from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('clarity_answers_draft');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setAnswers(parsed);
+      }
+    } catch {}
+  }, []);
+
+  // Save answers to sessionStorage whenever they change
+  useEffect(() => {
+    try {
+      if (Object.keys(answers).length > 0) {
+        sessionStorage.setItem('clarity_answers_draft', JSON.stringify(answers));
+      }
+    } catch {}
+  }, [answers]);
+
   const router = useRouter();
 
   const { toast } = useToast();
@@ -104,6 +157,22 @@ export default function ClarityByTanosecPage() {
   const isEmailCapture = step === totalQuestions + 2;
   const isResults = step === totalQuestions + 3;
   const currentQuestionIndex = step - 1;
+
+  const loadingMessages = [
+    "Analysing your responses...",
+    "Identifying your risk profile...",
+    "Consulting the SA threat landscape...",
+    "Crafting your recommendations...",
+    "Almost there...",
+  ];
+
+  useEffect(() => {
+    if (!isLoading) return;
+    const interval = setInterval(() => {
+      setLoadingMsgIndex(i => (i + 1) % loadingMessages.length);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   const handleSelectAnswer = (questionId: string, answerText: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: answerText }));
@@ -127,21 +196,40 @@ export default function ClarityByTanosecPage() {
     setStep(totalQuestions + 1);
   }, [totalQuestions]);
 
-  const handleShowReport = () => {
-    // Email is optional but recommended
-    if (email && email.includes("@")) {
-      // Logic for newsletter opt-in would be handled here
-      // For example, sending the email and opt-in status to a server
-      console.log(`Email: ${email}, Newsletter: ${newsletterOptIn}`);
-    } else if (email && !email.includes("@")) {
-      // Show warning for invalid email but still proceed
+  const handleShowReport = async () => {
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      // Warn on malformed email but still let them through
       toast({
         variant: "destructive",
         title: "Invalid Email Format",
         description: "The email format appears invalid, but you can still view your report.",
       });
     }
-    
+
+    const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+    const getScoreInterpretation = () => {
+      if (scorePercentage < 25) return { text: "Critical Risk" };
+      if (scorePercentage < 50) return { text: "High Risk" };
+      if (scorePercentage < 70) return { text: "Moderate Risk" };
+      if (scorePercentage < 85) return { text: "Low Risk" };
+      return { text: "Strong Posture" };
+    };
+
+    const worstCategory = Object.entries(categoryScores)
+      .filter(([, s]) => s.count > 0)
+      .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+    const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+
+    saveLeadCapture({
+      email: email || undefined,
+      newsletterOptIn,
+      score: Math.round(scorePercentage),
+      scoreLabel: getScoreInterpretation().text,
+      sector: sector || undefined,
+      companySize: companySize || undefined,
+      worstCategory: worstCategoryName || undefined,
+    }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+
     // Always proceed to the report
     setStep(totalQuestions + 3);
   };
@@ -152,6 +240,9 @@ export default function ClarityByTanosecPage() {
     setRecommendations(null);
     setEmail("");
     setNewsletterOptIn(false);
+    setSector('');
+    setCompanySize('');
+    sessionStorage.removeItem('clarity_answers_draft');
   };
   
   const handleRemindMe = () => {
@@ -235,7 +326,23 @@ export default function ClarityByTanosecPage() {
         {} as Record<string, string>
       );
 
-      getRecommendationsWithRetry(assessmentResponses)
+      const overallScorePercent = maxScore > 0 ? (score / maxScore) * 100 : 0;
+
+      // Shape categoryScores to match the AI input schema (add percentage field)
+      const enrichedCategoryScores = Object.fromEntries(
+        Object.entries(categoryScores).map(([catId, s]) => [
+          catId,
+          { score: s.score, maxScore: s.maxScore, percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0 },
+        ])
+      );
+
+      getRecommendationsWithRetry({
+        assessmentResponses,
+        overallScorePercent,
+        categoryScores: enrichedCategoryScores,
+        ...(sector ? { sector } : {}),
+        ...(companySize ? { companySize } : {}),
+      })
         .then((result) => {
           setRecommendations(result);
           setStep(totalQuestions + 2);
@@ -256,7 +363,7 @@ export default function ClarityByTanosecPage() {
           setStep(totalQuestions + 2);
         });
     }
-  }, [isLoading, answers, totalQuestions, toast]);
+  }, [isLoading, answers, totalQuestions, toast, score, maxScore, categoryScores, sector, companySize]);
 
   const renderContent = () => {
     if (isStart) {
@@ -273,17 +380,55 @@ export default function ClarityByTanosecPage() {
               AI-powered cybersecurity insights for your business. Assess your current posture in minutes and receive clear, actionable steps to improve your defences.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Context-gathering inputs — optional, not scored */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+              <div className="space-y-2">
+                <Label htmlFor="sector-select">What industry are you in?</Label>
+                <Select value={sector} onValueChange={setSector}>
+                  <SelectTrigger id="sector-select" className="w-full">
+                    <SelectValue placeholder="Select your industry" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Legal & Compliance">Legal &amp; Compliance</SelectItem>
+                    <SelectItem value="Healthcare & Medical">Healthcare &amp; Medical</SelectItem>
+                    <SelectItem value="Finance & Accounting">Finance &amp; Accounting</SelectItem>
+                    <SelectItem value="Retail & E-commerce">Retail &amp; E-commerce</SelectItem>
+                    <SelectItem value="Construction & Engineering">Construction &amp; Engineering</SelectItem>
+                    <SelectItem value="Professional Services">Professional Services</SelectItem>
+                    <SelectItem value="Hospitality & Tourism">Hospitality &amp; Tourism</SelectItem>
+                    <SelectItem value="Education">Education</SelectItem>
+                    <SelectItem value="Technology">Technology</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="size-select">How many people work at your business?</Label>
+                <Select value={companySize} onValueChange={setCompanySize}>
+                  <SelectTrigger id="size-select" className="w-full">
+                    <SelectValue placeholder="Select company size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1–5 employees">1–5 employees</SelectItem>
+                    <SelectItem value="6–20 employees">6–20 employees</SelectItem>
+                    <SelectItem value="21–50 employees">21–50 employees</SelectItem>
+                    <SelectItem value="51–200 employees">51–200 employees</SelectItem>
+                    <SelectItem value="200+ employees">200+ employees</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <Button
               size="lg"
-              className="font-bold text-lg"
+              className="font-bold text-lg w-full sm:w-auto"
               onClick={() => setStep(1)}
             >
               Start Assessment
             </Button>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground justify-center">
-            <p>Takes approximately 2 minutes to complete.</p>
+            <p>Takes approximately 2 minutes to complete. Industry &amp; size fields are optional.</p>
           </CardFooter>
         </Card>
       );
@@ -293,7 +438,9 @@ export default function ClarityByTanosecPage() {
       return (
         <div className="flex flex-col items-center justify-center gap-4 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <h2 className="text-3xl font-headline">Analyzing your responses...</h2>
+          <h2 className="text-3xl font-headline transition-opacity duration-500 ease-in-out">
+            {loadingMessages[loadingMsgIndex]}
+          </h2>
           <p className="text-muted-foreground">
             Our AI is crafting personalized recommendations just for you.
           </p>
@@ -305,38 +452,49 @@ export default function ClarityByTanosecPage() {
       return (
         <Card className="w-full max-w-lg text-center shadow-2xl animate-fade-in">
           <CardHeader>
-            <div className="mx-auto mb-4 text-primary">
-              <FileText size={48} />
-            </div>
             <CardTitle className="text-3xl font-headline">
               Your Report is Ready!
             </CardTitle>
-            <CardDescription className="text-md text-muted-foreground pt-2">
-              Enter your email address below to view your personalized cybersecurity report. <strong>Email is optional but recommended</strong> for receiving your report and future updates.
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-             <div className="space-y-2 text-left">
-                <Label htmlFor="email">Email Address (Optional but Recommended)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="text-base"
-                />
-              </div>
-               <div className="flex items-center space-x-2 text-left">
-                  <Checkbox 
-                    id="newsletter" 
-                    checked={newsletterOptIn}
-                    onCheckedChange={(checked: boolean | "indeterminate") => setNewsletterOptIn(checked as boolean)}
-                  />
-                  <Label htmlFor="newsletter" className="text-sm font-normal text-muted-foreground cursor-pointer">
-                    Yes, I'd like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
-                  </Label>
-              </div>
+          <CardContent className="space-y-5">
+            <div className="space-y-2 text-left">
+              <Label htmlFor="email">Email Address (Optional but Recommended)</Label>
+              {/* POPIA consent — shown above the input */}
+              <CardDescription className="text-sm text-muted-foreground leading-relaxed">
+                Enter your email to receive a follow-up from the Tanosec team.
+                By submitting, you consent to Tanosec Cybersecurity processing your information
+                in accordance with our{' '}
+                <a
+                  href="https://tanosec.co.za/privacy-policy-2/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-primary hover:text-primary/80"
+                >
+                  Privacy Policy
+                </a>{' '}
+                (POPIA compliant). Your data will not be sold or shared with third parties.
+              </CardDescription>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="text-base"
+              />
+            </div>
+            <div className="flex items-center space-x-2 text-left">
+              <Checkbox
+                id="newsletter"
+                checked={newsletterOptIn}
+                onCheckedChange={(checked: boolean | 'indeterminate') =>
+                  setNewsletterOptIn(checked as boolean)
+                }
+              />
+              <Label htmlFor="newsletter" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                Yes, I'd like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
+              </Label>
+            </div>
             <div className="space-y-3">
               <Button
                 size="lg"
@@ -345,20 +503,18 @@ export default function ClarityByTanosecPage() {
               >
                 Get My Report
               </Button>
-              {!email && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  onClick={handleShowReport}
-                >
-                  Continue Without Email
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full"
+                onClick={handleShowReport}
+              >
+                Continue Without Email
+              </Button>
             </div>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground justify-center">
-            <p>We respect your privacy and will not share your email.</p>
+            <p>We respect your privacy and will not share your data with third parties.</p>
           </CardFooter>
         </Card>
       );
@@ -433,9 +589,11 @@ export default function ClarityByTanosecPage() {
     if (isResults && recommendations) {
       const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
       const getScoreInterpretation = () => {
-        if (scorePercentage < 40) return { text: "High Risk", color: "text-destructive" };
-        if (scorePercentage < 75) return { text: "Moderate Risk", color: "text-yellow-400" };
-        return { text: "Low Risk", color: "text-green-400" };
+        if (scorePercentage < 25) return { text: "Critical Risk", color: "text-destructive", desc: "Your business is highly exposed. Immediate action required." };
+        if (scorePercentage < 50) return { text: "High Risk", color: "text-orange-400", desc: "Significant gaps exist. Several urgent actions needed." };
+        if (scorePercentage < 70) return { text: "Moderate Risk", color: "text-yellow-400", desc: "A reasonable baseline, but important gaps remain." };
+        if (scorePercentage < 85) return { text: "Low Risk", color: "text-green-400", desc: "Good security hygiene. Focus on continuous improvement." };
+        return { text: "Strong Posture", color: "text-emerald-400", desc: "Excellent security practices. Keep it up and stay current." };
       };
       
       const interpretation = getScoreInterpretation();
@@ -446,22 +604,32 @@ export default function ClarityByTanosecPage() {
         low: recommendations.recommendations.filter((r) => r.priority === "low"),
       };
 
-      const storeReportPayload = () => {
-        try {
-          const payload = {
-            score,
-            maxScore,
-            categoryScores,
-            recommendations,
-            generatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem("clarity_full_report_payload", JSON.stringify(payload));
-        } catch {}
-      };
+      const worstCategory = Object.entries(categoryScores)
+        .filter(([, s]) => s.count > 0)
+        .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
 
-      const handleDownloadFullReportPDF = () => {
-        storeReportPayload();
-        window.open("/full-report?action=pdf", "_blank", "noopener,noreferrer");
+      const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : null;
+
+      const handleEmailReport = async () => {
+        toast({
+          title: "Sending...",
+          description: "Requesting your report email.",
+        });
+        await emailReport({
+          email,
+          score: Math.round(scorePercentage),
+          scoreLabel: interpretation.text,
+          sector: sector || 'Not specified',
+          companySize: companySize || 'Not specified',
+          risks: recommendations.risks,
+          strengths: recommendations.strengths,
+          recommendations: recommendations.recommendations,
+        }).catch((err) => console.error('[emailReport] Failed silently:', err));
+        
+        toast({
+          title: "Report requested!",
+          description: `We'll email your results to ${email} shortly.`,
+        });
       };
 
       return (
@@ -472,9 +640,12 @@ export default function ClarityByTanosecPage() {
                 <h1 className="text-3xl font-headline">Your Security Report</h1>
               </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleDownloadFullReportPDF}>
-                <FileText className="mr-2" /> Download PDF
-              </Button>
+              {email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
+                <Button variant="outline" onClick={handleEmailReport}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Email My Report
+                </Button>
+              )}
               <Button onClick={handleRestart}>Start Over</Button>
             </div>
           </div>
@@ -492,6 +663,7 @@ export default function ClarityByTanosecPage() {
                 <Badge variant="outline" className={cn("text-lg", interpretation.color, interpretation.color.replace('text-', 'border-'))}>
                   {interpretation.text}
                 </Badge>
+                <p className="text-sm text-muted-foreground mt-1">{interpretation.desc}</p>
                 <p className="text-muted-foreground pt-2 print-text">
                   This score reflects your cybersecurity posture based on your answers.
                 </p>
@@ -635,9 +807,15 @@ export default function ClarityByTanosecPage() {
           </div>
           <Card className="bg-gradient-to-r from-primary/20 to-accent/20 no-print">
             <CardHeader>
-              <CardTitle>Ready to take the next step?</CardTitle>
+              <CardTitle>
+                {worstCategoryName 
+                  ? `Your biggest gap is ${worstCategoryName} — let's fix it.`
+                  : `Ready to take the next step?`}
+              </CardTitle>
               <CardDescription>
-                Our experts can help you implement these recommendations and secure your business.
+                {worstCategoryName
+                  ? `Our experts have seen this pattern before. A focused ${worstCategoryName} review with Tanosec typically takes one session and gives you a clear remediation roadmap.`
+                  : `Our experts can help you implement these recommendations and secure your business.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">

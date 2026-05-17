@@ -14,13 +14,13 @@ type Question = {
 };
 
 export const questionCategories: Record<string, QuestionCategory> = {
-  network: { name: "Network Security", weight: 0.2 },
-  access: { name: "Access Control & Authentication", weight: 0.2 },
-  data: { name: "Data Protection & Backup", weight: 0.15 },
-  endpoint: { name: "Endpoint Security", weight: 0.15 },
-  training: { name: "Security Awareness & Training", weight: 0.15 },
-  incident: { name: "Incident Response & Recovery", weight: 0.1 },
-  compliance: { name: "Compliance & Risk", weight: 0.05 },
+  network:    { name: "Network Security",                weight: 0.15 },
+  access:     { name: "Access Control & Authentication",  weight: 0.20 },
+  data:       { name: "Data Protection & Backup",         weight: 0.15 },
+  endpoint:   { name: "Endpoint Security",                weight: 0.15 },
+  training:   { name: "Security Awareness & Training",    weight: 0.15 },
+  incident:   { name: "Incident Response & Recovery",     weight: 0.10 },
+  compliance: { name: "Compliance & Risk",                weight: 0.10 },
 };
 
 export const questions: Question[] = [
@@ -38,11 +38,11 @@ export const questions: Question[] = [
   {
     id: "q2",
     category: "network",
-    text: "Is your Wi-Fi network secured with a strong password and hidden SSID?",
+    text: "Is your Wi-Fi network using WPA3 or WPA2 encryption with a strong, unique password?",
     options: [
-      { text: "Yes, both are implemented", score: 10 },
-      { text: "Only using a strong password", score: 6 },
-      { text: "No, password is weak or network is open", score: 0 },
+      { text: "Yes, WPA3 or WPA2 with a strong unique password", score: 10 },
+      { text: "We use a password but I'm not sure of the encryption type", score: 4 },
+      { text: "No, our Wi-Fi is open or uses a weak/default password", score: 0 },
     ],
   },
     {
@@ -229,6 +229,61 @@ export const questions: Question[] = [
       { text: "Yes, and we have a plan to address the identified risks", score: 10 },
       { text: "Yes, but we haven't acted on the findings", score: 5 },
       { text: "No, we have not performed a risk assessment", score: 0 },
+    ],
+  },
+  // Compliance — POPIA specific
+  {
+    id: "q21",
+    category: "compliance",
+    text: "Do you have a nominated Information Officer (as required by POPIA) who is responsible for data protection?",
+    options: [
+      { text: "Yes, we have a designated Information Officer", score: 10 },
+      { text: "Someone handles it informally but it's not formalised", score: 4 },
+      { text: "No, we have not appointed anyone", score: 0 },
+    ],
+  },
+  // Network — load shedding / UPS
+  {
+    id: "q22",
+    category: "network",
+    text: "During load shedding, are your critical systems (router, server, NAS) protected by a UPS and do they shut down safely?",
+    options: [
+      { text: "Yes, UPS in place with safe shutdown configured", score: 10 },
+      { text: "We have a UPS but shutdown is not automated", score: 5 },
+      { text: "No UPS — systems lose power abruptly during outages", score: 0 },
+    ],
+  },
+  // Training — social engineering
+  {
+    id: "q23",
+    category: "training",
+    text: "Are staff aware of South African-specific scams such as SIM swap fraud, fake SARS emails, and CEO impersonation attacks?",
+    options: [
+      { text: "Yes, we have specifically trained on these local threats", score: 10 },
+      { text: "Staff have general phishing awareness but not SA-specific threats", score: 5 },
+      { text: "No, our staff have not been trained on these scenarios", score: 0 },
+    ],
+  },
+  // Access — third party / vendor
+  {
+    id: "q24",
+    category: "access",
+    text: "Do you control and monitor what access third-party vendors or IT contractors have to your systems?",
+    options: [
+      { text: "Yes, vendor access is documented, time-limited, and audited", score: 10 },
+      { text: "Vendors have access but it's not formally managed", score: 3 },
+      { text: "We don't track or control third-party system access", score: 0 },
+    ],
+  },
+  // Data — cloud services
+  {
+    id: "q25",
+    category: "data",
+    text: "Are your Microsoft 365 or Google Workspace accounts secured with MFA and reviewed for suspicious activity?",
+    options: [
+      { text: "Yes, MFA enabled and we review access/activity logs", score: 10 },
+      { text: "MFA is enabled but we don't review activity logs", score: 6 },
+      { text: "No, these accounts are not specifically secured or monitored", score: 0 },
     ],
   },
 ];

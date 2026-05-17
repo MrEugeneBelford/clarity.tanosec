@@ -48,6 +48,7 @@ next-env.d.ts
 
 .genkit/*
 .env*
+!.env*.example
 
 # netlify
 .netlify

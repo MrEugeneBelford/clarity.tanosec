@@ -27,7 +27,7 @@ export async function generateGroqResponse(
 
   try {
     console.log('Sending request to Groq API with messages:', messages.length);
-    console.log('Using model: llama-3.1-8b-instant');
+    console.log('Using model: llama-3.3-70b-versatile');
     
     const boundedTemperature = Math.max(0, Math.min(1, temperature));
     const boundedMaxTokens = Math.max(1, Math.min(4000, maxTokens));
@@ -44,7 +44,7 @@ export async function generateGroqResponse(
           },
           signal: controller.signal,
           body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
+            model: 'llama-3.3-70b-versatile',
             messages: messages,
             temperature: boundedTemperature,
             max_tokens: boundedMaxTokens
@@ -59,7 +59,7 @@ export async function generateGroqResponse(
       const errorText = await response.text();
       console.error('Groq API error response:', response.status, errorText);
       console.error('Request details:', {
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         messageCount: messages.length,
         temperature: boundedTemperature,
         maxTokens: boundedMaxTokens

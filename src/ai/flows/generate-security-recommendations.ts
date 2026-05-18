@@ -122,7 +122,7 @@ to this specific industry where relevant.`;
         .trim();
       
       // Extract just the JSON object if there's text around it
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}(?=[^}]*$)/s) || cleaned.match(/\{[\s\S]*\}/s);;
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}(?=[^}]*$)/) || cleaned.match(/\{[\s\S]*\}/);;
       if (!jsonMatch) {
         console.error('[Clarity] No JSON object found in Gemini response');
         return FALLBACK;

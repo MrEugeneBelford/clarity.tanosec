@@ -368,16 +368,16 @@ export default function ClarityByTanosecPage() {
   const renderContent = () => {
     if (isStart) {
       return (
-        <Card className="w-full max-w-2xl text-center shadow-2xl animate-fade-in">
+        <Card className="w-full max-w-2xl text-center shadow-2xl animate-fade-in border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <div className="mx-auto mb-4">
               <Logo />
             </div>
-            <CardTitle className="text-4xl font-headline">
-              Welcome to Clarity by Tanosec
+            <CardTitle className="text-4xl md:text-5xl font-headline font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Clarity by Tanosec
             </CardTitle>
             <CardDescription className="text-lg text-muted-foreground pt-2">
-              AI-powered cybersecurity insights for your business. Assess your current posture in minutes and receive clear, actionable steps to improve your defences.
+              Think Like a Hacker, Secure Like a Pro. Assess your posture and get actionable steps to improve your defences.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -421,7 +421,7 @@ export default function ClarityByTanosecPage() {
             </div>
             <Button
               size="lg"
-              className="font-bold text-lg w-full sm:w-auto"
+              className="font-bold text-lg w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => setStep(1)}
             >
               Start Assessment
@@ -436,87 +436,82 @@ export default function ClarityByTanosecPage() {
 
     if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4 text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <h2 className="text-3xl font-headline transition-opacity duration-500 ease-in-out">
+        <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-fade-in">
+          <div className="relative flex items-center justify-center h-24 w-24">
+            <div className="absolute inset-0 border-t-2 border-primary rounded-full animate-spin"></div>
+            <Shield className="h-10 w-10 text-primary animate-pulse" />
+          </div>
+          <h2 className="text-2xl font-headline transition-opacity duration-500 ease-in-out text-foreground">
             {loadingMessages[loadingMsgIndex]}
           </h2>
-          <p className="text-muted-foreground">
-            Our AI is crafting personalized recommendations just for you.
-          </p>
         </div>
       );
     }
     
     if (isEmailCapture) {
       return (
-        <Card className="w-full max-w-lg text-center shadow-2xl animate-fade-in">
-          <CardHeader>
-            <CardTitle className="text-3xl font-headline">
-              Your Report is Ready!
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2 text-left">
-              <Label htmlFor="email">Email Address (Optional but Recommended)</Label>
-              {/* POPIA consent — shown above the input */}
-              <CardDescription className="text-sm text-muted-foreground leading-relaxed">
-                Enter your email to receive a follow-up from the Tanosec team.
-                By submitting, you consent to Tanosec Cybersecurity processing your information
-                in accordance with our{' '}
-                <a
-                  href="https://tanosec.co.za/privacy-policy-2/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-primary hover:text-primary/80"
+        <Card className="w-full max-w-lg text-center shadow-2xl animate-fade-in border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-3xl font-headline">
+                Your Report is Ready
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3 text-left">
+                <Label htmlFor="email" className="text-muted-foreground">Where should we send your results? (Optional)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-background/50 border-border/50 focus-visible:ring-primary h-12 text-lg"
+                />
+              </div>
+              <div className="flex items-center space-x-2 text-left">
+                <Checkbox
+                  id="newsletter"
+                  checked={newsletterOptIn}
+                  onCheckedChange={(checked) => setNewsletterOptIn(checked as boolean)}
+                  className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-border"
+                />
+                <label
+                  htmlFor="newsletter"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  Privacy Policy
-                </a>{' '}
-                (POPIA compliant). Your data will not be sold or shared with third parties.
-              </CardDescription>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="text-base"
-              />
-            </div>
-            <div className="flex items-center space-x-2 text-left">
-              <Checkbox
-                id="newsletter"
-                checked={newsletterOptIn}
-                onCheckedChange={(checked: boolean | 'indeterminate') =>
-                  setNewsletterOptIn(checked as boolean)
-                }
-              />
-              <Label htmlFor="newsletter" className="text-sm font-normal text-muted-foreground cursor-pointer">
-                Yes, I'd like to receive the Clarity Cyber Pulse newsletter — updates, alerts, and practical cybersecurity advice every quarter.
-              </Label>
-            </div>
-            <div className="space-y-3">
-              <Button
-                size="lg"
-                className="w-full font-bold text-lg"
-                onClick={handleShowReport}
+                  Keep me updated on South African cyber threats
+                </label>
+              </div>
+              
+              <div className="flex flex-col space-y-3 pt-4">
+                <Button
+                  size="lg"
+                  className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={handleShowReport}
+                >
+                  View My Report
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full text-muted-foreground hover:text-foreground"
+                  onClick={handleShowReport}
+                >
+                  Continue without email
+                </Button>
+              </div>
+            </CardContent>
+            <CardFooter className="text-xs text-muted-foreground justify-center text-center leading-relaxed px-8 pb-8">
+              By submitting, you consent to Tanosec processing your info per our {' '}
+              <a
+                href="https://tanosec.co.za/privacy-policy-2/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground transition-colors"
               >
-                Get My Report
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full"
-                onClick={handleShowReport}
-              >
-                Continue Without Email
-              </Button>
-            </div>
-          </CardContent>
-          <CardFooter className="text-xs text-muted-foreground justify-center">
-            <p>We respect your privacy and will not share your data with third parties.</p>
-          </CardFooter>
-        </Card>
+                Privacy Policy
+              </a>.
+            </CardFooter>
+          </Card>
       );
     }
 
@@ -532,53 +527,56 @@ export default function ClarityByTanosecPage() {
             <Logo size="small" />
           </div>
           <div className="space-y-4">
-            <Progress value={(step / totalQuestions) * 100} className="h-2 transition-all duration-300" />
-            <p className="text-center text-sm text-muted-foreground">
-              Question {step} of {totalQuestions}
-            </p>
-          </div>
-
-          <Card className="shadow-2xl animate-fade-in-up">
-            <CardHeader className="text-center">
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <div className="flex justify-between items-end mb-2">
+              <div className="flex items-center gap-2 text-primary">
                 <CategoryIcon className="h-5 w-5" />
                 <span className="font-semibold">{category.name}</span>
               </div>
-              <CardTitle className="text-2xl md:text-3xl pt-4">
+              <p className="text-xs text-muted-foreground font-medium">
+                Question {step} of {totalQuestions}
+              </p>
+            </div>
+            <Progress value={(step / totalQuestions) * 100} className="h-1 bg-muted [&>div]:bg-primary transition-all duration-300" />
+          </div>
+
+          <Card className="shadow-2xl animate-fade-in border-border/50 bg-card/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl pt-2 leading-relaxed">
                 {question.text}
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4">
+            <CardContent className="grid grid-cols-1 gap-3">
               {question.options.map((option) => (
-                <Card
+                <button
                   key={option.text}
                   onClick={() => handleSelectAnswer(question.id, option.text)}
                   className={cn(
-                    "cursor-pointer p-4 text-center transition-all duration-200 hover:bg-card/80 hover:shadow-md",
+                    "text-left w-full p-4 rounded-md border transition-all duration-200",
                     answers[question.id] === option.text
-                      ? "bg-primary/20 border-primary ring-2 ring-primary"
-                      : "bg-card"
+                      ? "bg-primary/10 border-primary ring-1 ring-primary text-foreground"
+                      : "bg-background/50 border-border/50 hover:bg-muted/50 hover:border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <p className="font-medium">{option.text}</p>
-                </Card>
+                  <p className="font-medium text-base">{option.text}</p>
+                </button>
               ))}
             </CardContent>
-            <CardFooter className="flex justify-between">
+            <CardFooter className="flex justify-between pt-4">
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={handleBack}
                 disabled={step <= 1}
+                className="text-muted-foreground hover:text-foreground"
               >
-                <ChevronLeft /> Back
+                <ChevronLeft className="mr-1 h-4 w-4" /> Back
               </Button>
               <Button
                 onClick={handleNext}
                 disabled={!answers[question.id]}
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-24"
               >
-                {step === totalQuestions ? "Get My Results" : "Next"}
-                <ChevronRight />
+                {step === totalQuestions ? "Finish" : "Next"}
+                <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </CardFooter>
           </Card>
@@ -652,9 +650,9 @@ export default function ClarityByTanosecPage() {
 
           <div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
-            <Card className="lg:col-span-1 print-card">
-              <CardHeader className="print-card-header">
-                <CardTitle className="text-2xl print-card-title">Overall Security Score</CardTitle>
+            <Card className="lg:col-span-1 print-card border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
+              <CardHeader className="print-card-header pb-2">
+                <CardTitle className="text-2xl print-card-title text-center">Overall Security Score</CardTitle>
               </CardHeader>
               <CardContent className="text-center print-card-content space-y-4">
                 <p className={cn("text-7xl font-bold", interpretation.color)}>
@@ -677,12 +675,12 @@ export default function ClarityByTanosecPage() {
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2 print-card">
-              <CardHeader className="print-card-header">
+            <Card className="lg:col-span-2 print-card border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
+              <CardHeader className="print-card-header pb-4">
                  <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
-                  <TrendingUp /> Domain Scores
+                  <TrendingUp className="text-primary" /> Domain Scores
                 </CardTitle>
-                <CardDescription className="print-text">
+                <CardDescription className="print-text text-base">
                   A breakdown of your score across different security domains.
                 </CardDescription>
               </CardHeader>
@@ -692,16 +690,18 @@ export default function ClarityByTanosecPage() {
                    const CategoryIcon = categoryIcons[catId] || Shield;
                    const catPercentage = scores.maxScore > 0 ? (scores.score / scores.maxScore) * 100 : 0;
                    return (
-                      <div key={catId} className="flex items-center gap-4 rounded-lg border p-3">
-                         <CategoryIcon className="h-8 w-8 text-muted-foreground" />
+                      <div key={catId} className="flex items-center gap-4 rounded-xl border border-border/50 bg-background/50 p-4 shadow-sm hover:shadow-md transition-shadow">
+                         <div className="p-2 bg-primary/10 rounded-lg">
+                           <CategoryIcon className="h-6 w-6 text-primary" />
+                         </div>
                          <div className="flex-1">
-                           <div className="flex justify-between items-baseline">
+                           <div className="flex justify-between items-baseline mb-2">
                              <p className="font-semibold text-card-foreground print-text">{questionCategories[catId].name}</p>
                              <p className="text-sm font-bold text-muted-foreground print-text">
                                {scores.score}/{scores.maxScore}
                              </p>
                            </div>
-                           <Progress value={catPercentage} className="h-2 mt-1" />
+                           <Progress value={catPercentage} className="h-2 bg-muted [&>div]:bg-primary" />
                          </div>
                       </div>
                    );
@@ -712,83 +712,93 @@ export default function ClarityByTanosecPage() {
 
           
           
-          <Card className="print-card page-break">
-            <CardHeader className="print-card-header">
-              <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
-                <Sparkles className="text-primary" /> AI-Powered Summary
+          <Card className="print-card page-break border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
+            <CardHeader className="print-card-header pb-4">
+              <CardTitle className="text-3xl flex items-center gap-3 print-card-title font-headline">
+                <Sparkles className="text-primary h-8 w-8" /> AI-Powered Summary
               </CardTitle>
-              <CardDescription className="print-text">
+              <CardDescription className="print-text text-base">
                 Our AI has analyzed your results to highlight your key risks and strengths.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 print-card-content">
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2"><ThumbsDown className="text-destructive"/> Top Risks</h3>
-                  <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                    {recommendations.risks.map((risk, i) => <li key={i} className="print-text">{risk}</li>)}
-                  </ul>
+                  <h3 className="font-headline font-bold text-xl flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5"/> Top Risks</h3>
+                  <div className="space-y-3">
+                    {recommendations.risks.map((risk, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-destructive/20 bg-destructive/5 text-destructive-foreground">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
+                        <span className="print-text leading-snug">{risk}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg flex items-center gap-2"><ThumbsUp className="text-green-500"/> Top Strengths</h3>
-                   <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                    {recommendations.strengths.map((strength, i) => <li key={i} className="print-text">{strength}</li>)}
-                  </ul>
+                  <h3 className="font-headline font-bold text-xl flex items-center gap-2 text-primary"><Shield className="h-5 w-5"/> Top Strengths</h3>
+                   <div className="space-y-3">
+                    {recommendations.strengths.map((strength, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-primary/20 bg-primary/5 text-primary-foreground/90">
+                        <Shield className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                        <span className="print-text leading-snug">{strength}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
             </CardContent>
           </Card>
 
 
-          <Card className="print-card page-break">
-            <CardHeader className="print-card-header">
-              <CardTitle className="text-2xl flex items-center gap-2 print-card-title">
-                <Sparkles className="text-primary" /> AI-Powered Recommendations
+          <Card className="print-card page-break border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
+            <CardHeader className="print-card-header pb-4">
+              <CardTitle className="text-3xl flex items-center gap-3 print-card-title font-headline">
+                <Target className="text-primary h-8 w-8" /> Prioritised Action Plan
               </CardTitle>
-              <CardDescription className="print-text">
+              <CardDescription className="print-text text-base">
                 Actionable steps to improve your security score, prioritized for impact.
               </CardDescription>
             </CardHeader>
             <CardContent className="print-card-content">
               <Tabs defaultValue="high" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 no-print print-tabs-list">
-                  <TabsTrigger value="high">High Priority</TabsTrigger>
-                  <TabsTrigger value="medium">Medium Priority</TabsTrigger>
-                  <TabsTrigger value="low">Low Priority</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 no-print print-tabs-list h-12 bg-background/50 border border-border/50">
+                  <TabsTrigger value="high" className="data-[state=active]:bg-card data-[state=active]:text-foreground text-base">High Priority</TabsTrigger>
+                  <TabsTrigger value="medium" className="data-[state=active]:bg-card data-[state=active]:text-foreground text-base">Medium Priority</TabsTrigger>
+                  <TabsTrigger value="low" className="data-[state=active]:bg-card data-[state=active]:text-foreground text-base">Low Priority</TabsTrigger>
                 </TabsList>
                 
                 <h3 className="hidden print-recommendation-title">High Priority Recommendations</h3>
-                <TabsContent value="high" className="space-y-4 pt-4 print-tabs-content">
+                <TabsContent value="high" className="space-y-4 pt-6 print-tabs-content">
                   {prioritizedRecs.high.length > 0 ? (
                     prioritizedRecs.high.map((rec, i) => (
-                      <div key={i} className="p-4 rounded-lg border bg-card flex items-start gap-4 print-card">
-                        <Badge variant="destructive" className="mt-1 print-badge">High</Badge>
-                        <p className="flex-1 print-text">{rec.recommendation}</p>
+                      <div key={i} className="p-5 rounded-xl border border-destructive/30 bg-destructive/5 flex items-start gap-5 print-card hover:bg-destructive/10 transition-colors">
+                        <Badge variant="destructive" className="mt-1 print-badge text-sm px-3 py-1 bg-destructive text-destructive-foreground hover:bg-destructive">HIGH</Badge>
+                        <p className="flex-1 print-text text-lg leading-relaxed">{rec.recommendation}</p>
                       </div>
                     ))
-                  ) : <p className="text-muted-foreground text-center py-4">No high priority recommendations. Great job!</p>}
+                  ) : <p className="text-muted-foreground text-center py-8 text-lg bg-background/30 rounded-lg border border-border/50">No high priority recommendations. Great job!</p>}
                 </TabsContent>
                 
                  <h3 className="hidden print-recommendation-title">Medium Priority Recommendations</h3>
-                <TabsContent value="medium" className="space-y-4 pt-4 print-tabs-content">
+                <TabsContent value="medium" className="space-y-4 pt-6 print-tabs-content">
                   {prioritizedRecs.medium.length > 0 ? (
                     prioritizedRecs.medium.map((rec, i) => (
-                      <div key={i} className="p-4 rounded-lg border bg-card flex items-start gap-4 print-card">
-                        <Badge className="bg-yellow-400/20 text-yellow-300 border-yellow-400/30 print-badge">Medium</Badge>
-                         <p className="flex-1 print-text">{rec.recommendation}</p>
+                      <div key={i} className="p-5 rounded-xl border border-orange-500/30 bg-orange-500/5 flex items-start gap-5 print-card hover:bg-orange-500/10 transition-colors">
+                        <Badge className="bg-orange-500 text-white hover:bg-orange-600 border-none print-badge text-sm px-3 py-1 mt-1">MEDIUM</Badge>
+                         <p className="flex-1 print-text text-lg leading-relaxed">{rec.recommendation}</p>
                       </div>
                     ))
-                   ) : <p className="text-muted-foreground text-center py-4">No medium priority recommendations.</p>}
+                   ) : <p className="text-muted-foreground text-center py-8 text-lg bg-background/30 rounded-lg border border-border/50">No medium priority recommendations.</p>}
                 </TabsContent>
 
                  <h3 className="hidden print-recommendation-title">Low Priority Recommendations</h3>
-                <TabsContent value="low" className="space-y-4 pt-4 print-tabs-content">
+                <TabsContent value="low" className="space-y-4 pt-6 print-tabs-content">
                    {prioritizedRecs.low.length > 0 ? (
                     prioritizedRecs.low.map((rec, i) => (
-                      <div key={i} className="p-4 rounded-lg border bg-card flex items-start gap-4 print-card">
-                        <Badge variant="secondary" className="print-badge">Low</Badge>
-                         <p className="flex-1 print-text">{rec.recommendation}</p>
+                      <div key={i} className="p-5 rounded-xl border border-primary/30 bg-primary/5 flex items-start gap-5 print-card hover:bg-primary/10 transition-colors">
+                        <Badge className="bg-primary text-primary-foreground hover:bg-primary/90 border-none print-badge text-sm px-3 py-1 mt-1">LOW</Badge>
+                         <p className="flex-1 print-text text-lg leading-relaxed">{rec.recommendation}</p>
                       </div>
                     ))
-                   ) : <p className="text-muted-foreground text-center py-4">No low priority recommendations.</p>}
+                   ) : <p className="text-muted-foreground text-center py-8 text-lg bg-background/30 rounded-lg border border-border/50">No low priority recommendations.</p>}
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -805,28 +815,29 @@ export default function ClarityByTanosecPage() {
             </CardContent>
           </Card>
           </div>
-          <Card className="bg-gradient-to-r from-primary/20 to-accent/20 no-print">
-            <CardHeader>
-              <CardTitle>
+          <Card className="bg-primary/10 border-primary/30 shadow-2xl no-print relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 opacity-50"></div>
+            <CardHeader className="relative z-10 text-center pb-4">
+              <CardTitle className="text-3xl md:text-4xl font-headline font-bold text-foreground">
                 {worstCategoryName 
-                  ? `Your biggest gap is ${worstCategoryName} — let's fix it.`
-                  : `Ready to take the next step?`}
+                  ? <span className="text-primary">{worstCategoryName}</span>
+                  : `Security`} is your biggest gap.
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-lg text-foreground/80 max-w-2xl mx-auto pt-2">
                 {worstCategoryName
-                  ? `Our experts have seen this pattern before. A focused ${worstCategoryName} review with Tanosec typically takes one session and gives you a clear remediation roadmap.`
+                  ? `Our experts have seen this pattern before. A focused review with Tanosec typically takes one session and gives you a clear remediation roadmap.`
                   : `Our experts can help you implement these recommendations and secure your business.`}
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-4">
-              <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <CardContent className="relative z-10 flex flex-col sm:flex-row justify-center gap-4 pt-4">
+              <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow">
                   Book a Free Consultation
                 </Button>
               </a>
-               <Button size="lg" variant="outline" onClick={handleRemindMe}>
-                  <CalendarClock className="mr-2" />
-                  Remind me to reassess in 3 months
+               <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-6 border-primary/50 hover:bg-primary/10 text-foreground" onClick={handleRemindMe}>
+                  <CalendarClock className="mr-2 h-5 w-5" />
+                  Remind me in 3 months
                 </Button>
             </CardContent>
           </Card>
@@ -838,7 +849,7 @@ export default function ClarityByTanosecPage() {
   };
 
   return (
-    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body">
+    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body bg-dot-pattern">
       {renderContent()}
     </div>
   );

@@ -1,8 +1,6 @@
 'use server';
 
-import { notifyNewAssessment } from './notifications';
-
-const TELEGRAM_CHAT_ID = '8460565721';
+import { notifyNewAssessment } from '@/lib/notifications';
 
 export async function saveLeadCapture(data: {
   email?: string;
@@ -55,36 +53,7 @@ export async function emailReport(
   payload: EmailReportPayload
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-      console.error('[leadActions] TELEGRAM_BOT_TOKEN is not set — skipping email report notification.');
-      return { success: true };
-    }
-
-    const message = [
-      '📋 Report email requested',
-      `📧 ${payload.email}`,
-      `📊 ${payload.score}% — ${payload.scoreLabel}`,
-      '',
-      'Note: implement email delivery via your preferred provider (Resend, SendGrid, etc.)'
-    ].join('\n');
-
-    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
-
-    const response = await fetch(telegramUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: message,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[leadActions] Telegram API error:', response.status, errorText);
-    }
-
+    console.log('[leadActions] emailReport requested for:', payload.email);
     return { success: true };
   } catch (error) {
     console.error('[leadActions] Unexpected error in emailReport:', error);

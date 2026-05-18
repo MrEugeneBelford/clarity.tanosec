@@ -111,6 +111,8 @@ to this specific industry where relevant.`;
       return FALLBACK;
     }
 
+    console.log('[Clarity] Raw Gemini response (first 500 chars):', content.substring(0, 500));
+
     try {
       // Strip markdown code fences and any text before/after the JSON object
       const cleaned = content

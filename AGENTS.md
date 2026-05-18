@@ -25,7 +25,7 @@ Clarity is an AI-powered cybersecurity self-assessment tool for South African SM
 
 When a user completes an assessment, two notifications fire in parallel:
 
-**WhatsApp** via Whapi.cloud → Tanosec dedicated business number (+27621234244)  
+**WhatsApp** via Whapi.cloud → Tanosec dedicated business number (+27 621 234 244)  
 **Email** via Resend → clarity@tanosec.co.za  
 
 Environment variables required:

@@ -1031,16 +1031,24 @@ export default function ClarityByTanosecPage() {
                   : `Our experts can help you implement these recommendations and secure your business.`}
               </CardDescription>
             </CardHeader>
-            <CardContent className="relative z-10 flex flex-col sm:flex-row justify-center gap-4 pt-4">
-              <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow">
-                  Book a Free Consultation
-                </Button>
-              </a>
-               <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-6 border-primary/50 hover:bg-primary/10 text-foreground" onClick={handleRemindMe}>
+            <CardContent className="relative z-10 flex flex-col items-center gap-6 pt-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-4 w-full">
+                <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow">
+                    Book a Free Consultation
+                  </Button>
+                </a>
+                <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-6 border-primary/50 hover:bg-primary/10 text-foreground" onClick={handleRemindMe}>
                   <CalendarClock className="mr-2 h-5 w-5" />
                   Remind me in 3 months
                 </Button>
+              </div>
+              <p className="text-sm text-foreground/80 font-mono mt-2 flex flex-wrap items-center justify-center gap-4">
+                <span>Or reach us directly:</span>
+                <a href="tel:+27621234244" className="text-primary hover:underline font-bold transition-all hover:scale-105">+27 621 234 244</a>
+                <span className="text-muted-foreground/40">•</span>
+                <a href="mailto:support@tanosec.co.za" className="text-primary hover:underline font-bold transition-all hover:scale-105">support@tanosec.co.za</a>
+              </p>
             </CardContent>
           </Card>
 

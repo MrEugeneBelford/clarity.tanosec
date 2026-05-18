@@ -3,14 +3,17 @@ type QuestionCategory = {
   weight: number;
 };
 
+type AnswerOption = {
+  text: string;
+  score: number;
+};
+
 type Question = {
   id: string;
   category: keyof typeof questionCategories;
   text: string;
-  options: {
-    text: string;
-    score: number;
-  }[];
+  options: AnswerOption[];
+  industryOptions?: Partial<Record<string, AnswerOption[]>>;
 };
 
 export const questionCategories: Record<string, QuestionCategory> = {
@@ -20,7 +23,8 @@ export const questionCategories: Record<string, QuestionCategory> = {
   endpoint:   { name: "Endpoint Security",                weight: 0.15 },
   training:   { name: "Security Awareness & Training",    weight: 0.15 },
   incident:   { name: "Incident Response & Recovery",     weight: 0.10 },
-  compliance: { name: "Compliance & Risk",                weight: 0.10 },
+  compliance:    { name: "Compliance & Risk",                weight: 0.05 },
+  ai_governance: { name: "AI Governance & Risk",             weight: 0.05 },
 };
 
 export const questions: Question[] = [
@@ -96,6 +100,28 @@ export const questions: Question[] = [
       { text: "Backups are infrequent or never tested", score: 3 },
       { text: "We do not back up our data", score: 0 },
     ],
+    industryOptions: {
+      "Legal & Compliance": [
+        { text: "Yes, client files and matter data backed up daily with offsite copy", score: 10 },
+        { text: "Backups run but client files are not specifically included", score: 4 },
+        { text: "No reliable backup system in place", score: 0 },
+      ],
+      "Healthcare & Medical": [
+        { text: "Yes, patient records backed up daily and encrypted, tested quarterly", score: 10 },
+        { text: "Backups exist but patient records are not separately verified", score: 4 },
+        { text: "No reliable backup for patient data", score: 0 },
+      ],
+      "Finance & Accounting": [
+        { text: "Yes, financial data and client records backed up daily with offsite copy", score: 10 },
+        { text: "Backups run but financial records not specifically verified", score: 4 },
+        { text: "No reliable financial data backup", score: 0 },
+      ],
+      "Retail & E-commerce": [
+        { text: "Yes, transaction data and inventory backed up daily", score: 10 },
+        { text: "Backups exist but POS and transaction data not specifically covered", score: 4 },
+        { text: "No reliable backup in place", score: 0 },
+      ],
+    },
   },
   {
     id: "q8",
@@ -158,6 +184,23 @@ export const questions: Question[] = [
       { text: "Training was provided, but not recently or to everyone", score: 4 },
       { text: "No training is provided", score: 0 },
     ],
+    industryOptions: {
+      "Legal & Compliance": [
+        { text: "Yes, including training on client confidentiality, phishing, and matter data handling", score: 10 },
+        { text: "Basic security awareness only, no legal-specific scenarios", score: 5 },
+        { text: "No formal security training", score: 0 },
+      ],
+      "Healthcare & Medical": [
+        { text: "Yes, including patient data handling, POPIA, and medical record security", score: 10 },
+        { text: "Basic awareness only, no healthcare-specific scenarios", score: 5 },
+        { text: "No formal security training", score: 0 },
+      ],
+      "Finance & Accounting": [
+        { text: "Yes, including financial fraud, social engineering, and client data protection", score: 10 },
+        { text: "Basic awareness only, no finance-specific scenarios", score: 5 },
+        { text: "No formal security training", score: 0 },
+      ],
+    },
   },
   {
     id: "q12",
@@ -241,6 +284,23 @@ export const questions: Question[] = [
       { text: "Someone handles it informally but it's not formalised", score: 4 },
       { text: "No, we have not appointed anyone", score: 0 },
     ],
+    industryOptions: {
+      "Legal & Compliance": [
+        { text: "Yes, we have a designated Information Officer and a compliant PAIA manual", score: 10 },
+        { text: "Information Officer appointed but PAIA manual not current", score: 5 },
+        { text: "No Information Officer appointed", score: 0 },
+      ],
+      "Healthcare & Medical": [
+        { text: "Yes, Information Officer appointed and patient consent processes are documented", score: 10 },
+        { text: "Informal compliance only, not fully documented", score: 4 },
+        { text: "No formal POPIA compliance measures in place", score: 0 },
+      ],
+      "Finance & Accounting": [
+        { text: "Yes, Information Officer appointed and client data retention policies documented", score: 10 },
+        { text: "Some compliance measures but not formalised", score: 4 },
+        { text: "No formal POPIA compliance in place", score: 0 },
+      ],
+    },
   },
   // Network — load shedding / UPS
   {
@@ -274,6 +334,23 @@ export const questions: Question[] = [
       { text: "Vendors have access but it's not formally managed", score: 3 },
       { text: "We don't track or control third-party system access", score: 0 },
     ],
+    industryOptions: {
+      "Legal & Compliance": [
+        { text: "Yes, IT contractors sign NDAs and access is matter-specific and time-limited", score: 10 },
+        { text: "Vendors have access but no formal NDA or access controls", score: 3 },
+        { text: "Vendor access is not tracked or controlled", score: 0 },
+      ],
+      "Healthcare & Medical": [
+        { text: "Yes, vendors cannot access patient records and access is logged", score: 10 },
+        { text: "Vendor access exists but patient data segregation not enforced", score: 3 },
+        { text: "Vendor access is not controlled or monitored", score: 0 },
+      ],
+      "Finance & Accounting": [
+        { text: "Yes, vendors sign NDAs, access is time-limited and does not include client financial data", score: 10 },
+        { text: "Access exists but financial data is not specifically excluded", score: 3 },
+        { text: "No vendor access controls in place", score: 0 },
+      ],
+    },
   },
   // Data — cloud services
   {
@@ -284,6 +361,85 @@ export const questions: Question[] = [
       { text: "Yes, MFA enabled and we review access/activity logs", score: 10 },
       { text: "MFA is enabled but we don't review activity logs", score: 6 },
       { text: "No, these accounts are not specifically secured or monitored", score: 0 },
+    ],
+    industryOptions: {
+      "Legal & Compliance": [
+        { text: "Yes, MFA enabled, activity reviewed, and legal documents access-controlled by matter", score: 10 },
+        { text: "MFA enabled but document access not matter-specific", score: 5 },
+        { text: "No specific security measures on cloud accounts", score: 0 },
+      ],
+      "Healthcare & Medical": [
+        { text: "Yes, MFA enabled, patient data not stored in general cloud folders", score: 10 },
+        { text: "MFA enabled but patient data storage not specifically controlled", score: 5 },
+        { text: "No specific cloud account security", score: 0 },
+      ],
+    },
+  },
+  // AI Governance & Risk
+  {
+    id: "q26",
+    category: "ai_governance",
+    text: "Do staff use AI tools (such as ChatGPT, Microsoft Copilot, or Gemini) for work tasks, and does your business have a policy governing what data may be shared with them?",
+    options: [
+      { 
+        text: "Yes, we use AI tools and have a clear written policy on data sharing", 
+        score: 10 
+      },
+      { 
+        text: "Staff use AI tools informally but there is no formal policy", 
+        score: 3 
+      },
+      { 
+        text: "We do not use AI tools in our business", 
+        score: 7 
+      },
+      { 
+        text: "I am not sure whether staff are using AI tools", 
+        score: 0 
+      },
+    ],
+    industryOptions: {
+      "Legal & Compliance": [
+        { text: "Yes, we have an AI policy that explicitly prohibits inputting client or privileged data into public AI tools", score: 10 },
+        { text: "Staff use AI tools but there is no policy on client or privileged data", score: 2 },
+        { text: "We do not use AI tools", score: 7 },
+        { text: "I am not sure whether staff use AI tools", score: 0 },
+      ],
+      "Healthcare & Medical": [
+        { text: "Yes, we have an AI policy that explicitly prohibits inputting patient data into public AI tools", score: 10 },
+        { text: "Staff use AI tools but there is no policy on patient data", score: 2 },
+        { text: "We do not use AI tools", score: 7 },
+        { text: "I am not sure whether staff use AI tools", score: 0 },
+      ],
+      "Finance & Accounting": [
+        { text: "Yes, we have an AI policy covering client financial data and regulatory requirements", score: 10 },
+        { text: "Staff use AI tools but no policy covers client financial data", score: 2 },
+        { text: "We do not use AI tools", score: 7 },
+        { text: "I am not sure whether staff use AI tools", score: 0 },
+      ],
+    },
+  },
+  {
+    id: "q27",
+    category: "ai_governance",
+    text: "Are AI-generated outputs (reports, advice, emails, documents) reviewed by a qualified person before being used in client-facing work or business decisions?",
+    options: [
+      { 
+        text: "Yes, all AI outputs are reviewed before use", 
+        score: 10 
+      },
+      { 
+        text: "Sometimes, but not consistently", 
+        score: 5 
+      },
+      { 
+        text: "No, AI outputs are used directly without review", 
+        score: 0 
+      },
+      { 
+        text: "We do not use AI tools", 
+        score: 8 
+      },
     ],
   },
 ];

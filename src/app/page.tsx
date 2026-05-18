@@ -126,6 +126,7 @@ export default function ClarityByTanosecPage() {
   const [recommendations, setRecommendations] =
     useState<GenerateSecurityRecommendationsOutput | null>(null);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  const [isPreviewResults, setIsPreviewResults] = useState(false);
 
   // Restore answers from sessionStorage on mount
   useEffect(() => {
@@ -154,7 +155,7 @@ export default function ClarityByTanosecPage() {
   const isStart = step === 0;
   const isAssessment = step > 0 && step <= totalQuestions;
   const isLoading = step === totalQuestions + 1;
-  const isEmailCapture = step === totalQuestions + 2;
+  const isEmailCapture = step === totalQuestions + 2 && !isPreviewResults;
   const isResults = step === totalQuestions + 3;
   const currentQuestionIndex = step - 1;
 
@@ -197,41 +198,44 @@ export default function ClarityByTanosecPage() {
   }, [totalQuestions]);
 
   const handleShowReport = async () => {
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      // Warn on malformed email but still let them through
-      toast({
-        variant: "destructive",
-        title: "Invalid Email Format",
-        description: "The email format appears invalid, but you can still view your report.",
-      });
+    if (email) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid Email Format",
+          description: "The email format appears invalid.",
+        });
+        return;
+      }
+
+      const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+      const getScoreInterpretation = () => {
+        if (scorePercentage < 25) return { text: "Critical Risk" };
+        if (scorePercentage < 50) return { text: "High Risk" };
+        if (scorePercentage < 70) return { text: "Moderate Risk" };
+        if (scorePercentage < 85) return { text: "Low Risk" };
+        return { text: "Strong Posture" };
+      };
+
+      const worstCategory = Object.entries(categoryScores)
+        .filter(([, s]) => s.count > 0)
+        .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+      const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+
+      saveLeadCapture({
+        email: email,
+        newsletterOptIn,
+        score: Math.round(scorePercentage),
+        scoreLabel: getScoreInterpretation().text,
+        sector: sector || undefined,
+        companySize: companySize || undefined,
+        worstCategory: worstCategoryName || undefined,
+      }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+
+      setStep(totalQuestions + 3); // Go straight to full results
+    } else {
+      setIsPreviewResults(true); // Proceed to preview/gate results page
     }
-
-    const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
-    const getScoreInterpretation = () => {
-      if (scorePercentage < 25) return { text: "Critical Risk" };
-      if (scorePercentage < 50) return { text: "High Risk" };
-      if (scorePercentage < 70) return { text: "Moderate Risk" };
-      if (scorePercentage < 85) return { text: "Low Risk" };
-      return { text: "Strong Posture" };
-    };
-
-    const worstCategory = Object.entries(categoryScores)
-      .filter(([, s]) => s.count > 0)
-      .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
-    const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
-
-    saveLeadCapture({
-      email: email || undefined,
-      newsletterOptIn,
-      score: Math.round(scorePercentage),
-      scoreLabel: getScoreInterpretation().text,
-      sector: sector || undefined,
-      companySize: companySize || undefined,
-      worstCategory: worstCategoryName || undefined,
-    }).catch((err) => console.error('[leadCapture] Failed silently:', err));
-
-    // Always proceed to the report
-    setStep(totalQuestions + 3);
   };
   
   const handleRestart = () => {
@@ -242,6 +246,7 @@ export default function ClarityByTanosecPage() {
     setNewsletterOptIn(false);
     setSector('');
     setCompanySize('');
+    setIsPreviewResults(false);
     sessionStorage.removeItem('clarity_answers_draft');
   };
   
@@ -294,14 +299,21 @@ export default function ClarityByTanosecPage() {
     });
 
     questions.forEach((q) => {
-      const maxOptionScore = Math.max(...q.options.map((opt) => opt.score));
+      const currentOptions = (() => {
+        if (sector && q.industryOptions && q.industryOptions[sector]) {
+          return q.industryOptions[sector];
+        }
+        return q.options;
+      })();
+
+      const maxOptionScore = Math.max(...currentOptions.map((opt) => opt.score));
       maxScore += maxOptionScore;
       categoryScores[q.category].maxScore += maxOptionScore;
       categoryScores[q.category].count += 1;
 
       const selectedAnswerText = answers[q.id];
       if (selectedAnswerText) {
-        const selectedOption = q.options.find(
+        const selectedOption = currentOptions.find(
           (opt) => opt.text === selectedAnswerText
         );
         if (selectedOption) {
@@ -311,7 +323,7 @@ export default function ClarityByTanosecPage() {
       }
     });
     return { score, maxScore, categoryScores };
-  }, [answers]);
+  }, [answers, sector]);
 
   useEffect(() => {
     if (isLoading) {
@@ -491,13 +503,6 @@ export default function ClarityByTanosecPage() {
                 >
                   View My Report
                 </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full text-muted-foreground hover:text-foreground"
-                  onClick={handleShowReport}
-                >
-                  Continue without email
-                </Button>
               </div>
             </CardContent>
             <CardFooter className="text-xs text-muted-foreground justify-center text-center leading-relaxed px-8 pb-8">
@@ -520,6 +525,13 @@ export default function ClarityByTanosecPage() {
       const question = questions[currentQuestionIndex];
       const category = questionCategories[question.category];
       const CategoryIcon = categoryIcons[question.category] || Shield;
+
+      const currentOptions = (() => {
+        if (sector && question.industryOptions && question.industryOptions[sector]) {
+          return question.industryOptions[sector];
+        }
+        return question.options;
+      })();
 
       return (
         <div className="w-full max-w-3xl space-y-8">
@@ -546,7 +558,7 @@ export default function ClarityByTanosecPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-3">
-              {question.options.map((option) => (
+              {currentOptions.map((option) => (
                 <button
                   key={option.text}
                   onClick={() => handleSelectAnswer(question.id, option.text)}
@@ -578,6 +590,196 @@ export default function ClarityByTanosecPage() {
                 {step === totalQuestions ? "Finish" : "Next"}
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      );
+    }
+
+    if (isPreviewResults && recommendations) {
+      const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+      const getScoreInterpretation = () => {
+        if (scorePercentage < 25) return { text: "Critical Risk", color: "text-destructive", border: "border-destructive", desc: "Your business is highly exposed. Immediate action required." };
+        if (scorePercentage < 50) return { text: "High Risk", color: "text-orange-400", border: "border-orange-400/30", desc: "Significant gaps exist. Several urgent actions needed." };
+        if (scorePercentage < 70) return { text: "Moderate Risk", color: "text-yellow-400", border: "border-yellow-400/30", desc: "A reasonable baseline, but important gaps remain." };
+        if (scorePercentage < 85) return { text: "Low Risk", color: "text-green-400", border: "border-green-400/30", desc: "Good security hygiene. Focus on continuous improvement." };
+        return { text: "Strong Posture", color: "text-emerald-400", border: "border-emerald-400/30", desc: "Excellent security practices. Keep it up and stay current." };
+      };
+      
+      const interpretation = getScoreInterpretation();
+
+      const handlePreviewSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Email Address",
+            description: "Please enter a valid email address to unlock your full report.",
+          });
+          return;
+        }
+
+        const worstCategory = Object.entries(categoryScores)
+          .filter(([, s]) => s.count > 0)
+          .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+        const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+
+        saveLeadCapture({
+          email,
+          newsletterOptIn,
+          score: Math.round(scorePercentage),
+          scoreLabel: interpretation.text,
+          sector: sector || undefined,
+          companySize: companySize || undefined,
+          worstCategory: worstCategoryName || undefined,
+        }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+
+        setIsPreviewResults(false);
+        setStep(totalQuestions + 3); // Go to results
+      };
+
+      return (
+        <div className="w-full max-w-2xl space-y-8 animate-fade-in">
+          <div className="flex flex-col items-center text-center">
+            <Logo size="small" />
+            <h1 className="text-3xl font-headline font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+              Your Security Posture Preview
+            </h1>
+          </div>
+
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
+            <CardHeader className="text-center pb-2">
+              <CardDescription className="text-muted-foreground uppercase tracking-wider text-xs font-semibold">
+                Overall Security Score
+              </CardDescription>
+              <div className="py-4">
+                <p className={cn("text-7xl font-bold", interpretation.color)}>
+                  {scorePercentage.toFixed(0)}%
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <Badge variant="outline" className={cn("text-lg px-4 py-1", interpretation.color, interpretation.border)}>
+                  {interpretation.text}
+                </Badge>
+              </div>
+              <p className="text-base text-muted-foreground mt-4 max-w-md mx-auto">{interpretation.desc}</p>
+            </CardHeader>
+
+            <CardContent className="space-y-6 pt-4">
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 text-center">
+                <p className="text-sm font-medium text-primary">
+                  We identified {recommendations.risks.length} key risks in your assessment.
+                </p>
+              </div>
+
+              {/* Locked Teaser Section */}
+              <div className="relative rounded-xl border border-border/40 bg-background/20 p-6 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-4">
+                  <div className="p-4 bg-primary/10 rounded-full border border-primary/25 mb-3 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                    <Lock className="h-8 w-8 text-primary animate-pulse" />
+                  </div>
+                  <p className="font-headline font-bold text-xl text-foreground text-center">
+                    Enter your email to unlock your full security report
+                  </p>
+                </div>
+
+                {/* Blurred Content Placeholder */}
+                <div className="space-y-4 opacity-25 select-none pointer-events-none">
+                  <div className="h-6 w-1/3 bg-muted rounded"></div>
+                  <div className="h-4 w-full bg-muted rounded"></div>
+                  <div className="h-4 w-5/6 bg-muted rounded"></div>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="h-16 bg-muted rounded-xl"></div>
+                    <div className="h-16 bg-muted rounded-xl"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="font-headline font-bold text-lg text-foreground">
+                  Your full security report includes:
+                </h3>
+                <ul className="space-y-2 text-muted-foreground text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>Category-by-category breakdown across 8 domains</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>Your top risks identified by AI</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>Your security strengths</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>5–8 prioritised recommendations tailored to your business</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>A personalised consultation offer</span>
+                  </li>
+                </ul>
+              </div>
+
+              <form onSubmit={handlePreviewSubmit} className="space-y-4 pt-4 border-t border-border/30">
+                <div className="space-y-2">
+                  <Label htmlFor="preview-email" className="text-sm font-semibold">Unlock your full report</Label>
+                  <Input
+                    id="preview-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-background/50 border-border/50 focus-visible:ring-primary h-12 text-lg"
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2 pb-2">
+                  <Checkbox
+                    id="preview-newsletter"
+                    checked={newsletterOptIn}
+                    onCheckedChange={(checked) => setNewsletterOptIn(checked as boolean)}
+                    className="data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-border"
+                  />
+                  <label
+                    htmlFor="preview-newsletter"
+                    className="text-xs text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Keep me updated on South African cyber threats
+                  </label>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
+                >
+                  Send My Full Report
+                </Button>
+              </form>
+            </CardContent>
+
+            <CardFooter className="flex flex-col space-y-4 text-center px-6 pb-6 pt-2 border-t border-border/20">
+              <p className="text-[10px] leading-relaxed text-muted-foreground max-w-md">
+                By submitting, you consent to Tanosec Cybersecurity contacting you about your posture in accordance with our{" "}
+                <a
+                  href="https://tanosec.co.za/privacy-policy-2/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-foreground transition-colors"
+                >
+                  Privacy Policy
+                </a>
+                . POPIA compliant. No spam, ever.
+              </p>
+              <p className="text-[10px] text-muted-foreground/60 font-mono">
+                <a href="mailto:support@tanosec.co.za" className="hover:text-primary transition-colors">support@tanosec.co.za</a>
+                {" · "}
+                <a href="tel:+27621234244" className="hover:text-primary transition-colors">+27 621 234 244</a>
+              </p>
             </CardFooter>
           </Card>
         </div>
@@ -804,14 +1006,14 @@ export default function ClarityByTanosecPage() {
             </CardContent>
           </Card>
           
-          <Card className="print-card page-break">
+          <Card className="print-card page-break border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
             <CardHeader className="print-card-header">
-              <CardTitle className="text-2xl print-card-title">Contact Tanosec Cybersecurity</CardTitle>
+              <CardTitle className="text-2xl print-card-title font-headline">Contact Tanosec Cybersecurity</CardTitle>
               <CardDescription className="print-text">We're here to help you implement your recommendations.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 print-card-content">
-              <p className="print-text"><strong>Telephone:</strong> +27 68 629 5030</p>
-              <p className="print-text"><strong>Email:</strong> clarity@tanosec.co.za</p>
+              <p className="print-text"><strong>Telephone:</strong> <a href="tel:+27621234244" className="hover:text-primary transition-colors">+27 621 234 244</a></p>
+              <p className="print-text"><strong>Email:</strong> <a href="mailto:support@tanosec.co.za" className="hover:text-primary transition-colors">support@tanosec.co.za</a></p>
             </CardContent>
           </Card>
           </div>

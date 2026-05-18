@@ -51,4 +51,4 @@ next-env.d.ts
 !.env*.example
 
 # netlify
-.netlify
+.netlify.env.local

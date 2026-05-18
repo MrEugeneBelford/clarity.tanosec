@@ -46,6 +46,8 @@ const systemPrompt = `You are a senior cybersecurity advisor specialising in Sou
 
 Your role is to analyse a business's cybersecurity self-assessment and deliver sharp, practical, SA-specific recommendations. You understand the local threat landscape: SIM swap fraud, SASSA and SAPO phishing campaigns, load shedding impacts on UPS and backup reliability, POPIA compliance obligations, and the budget constraints of Free State and broader SA SMEs.
 
+You are also aware of the growing AI governance risk in SA SMEs: staff using public AI tools (ChatGPT, Copilot, Gemini) to process client data without authorisation, violating POPIA; AI-generated outputs being used in professional or legal contexts without human review; and businesses having no AI usage policy whatsoever. Where the assessment reveals AI governance gaps, flag these explicitly.
+
 Your tone is direct, expert, and no-nonsense.
 
 You must respond with ONLY a valid JSON object in this exact structure:
@@ -88,22 +90,16 @@ export async function generateSecurityRecommendations(
     .filter(([, s]) => s.maxScore > 0)
     .sort(([, a], [, b]) => a.percentage - b.percentage)[0]?.[0] || 'Unknown';
 
-  const userPrompt = `
-BUSINESS CONTEXT:
-Sector: ${input.sector || 'Not specified'}
-Size: ${input.companySize || 'Not specified'}
+  const sectorLine = input.sector ? `Industry Sector: ${input.sector}` : '';
+  const userPrompt = `CYBERSECURITY ASSESSMENT RESULTS
+${sectorLine}
 
-ASSESSMENT METRICS:
-Overall Score: ${input.overallScorePercent ? Math.round(input.overallScorePercent) : 0}%
-Weakest Category: ${weakestCategory}
+${Object.entries(input.assessmentResponses)
+  .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+  .join('\n\n')}
 
-CATEGORY SCORES:
-${categoryBreakdown}
-
-DETAILED RESPONSES:
-${detailedResponses}
-
-Generate the JSON report now.`;
+Analyse these and return your JSON assessment. Tailor risks and recommendations 
+to this specific industry where relevant.`;
 
   try {
     const { content, success, error } = await callGemini(systemPrompt, userPrompt);

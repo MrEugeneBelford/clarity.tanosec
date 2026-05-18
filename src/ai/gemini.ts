@@ -9,7 +9,7 @@ export async function callGemini(systemPrompt: string, userPrompt: string): Prom
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: 'gemini-2.5-flash',
       systemInstruction: systemPrompt,
       generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' },
     });

@@ -42,7 +42,9 @@ const FALLBACK: GenerateSecurityRecommendationsOutput = {
   ],
 };
 
-const systemPrompt = `You are a senior cybersecurity advisor specialising in South African SMEs. You work for Tanosec Cybersecurity (Bloemfontein). Tagline: "Think Like a Hacker, Secure Like a Pro."
+const systemPrompt = `IMPORTANT: Your response must be a raw JSON object only. No markdown. No code fences. No backticks. No text before or after the JSON. Start your response with { and end with }.
+
+You are a senior cybersecurity advisor specialising in South African SMEs. You work for Tanosec Cybersecurity (Bloemfontein). Tagline: "Think Like a Hacker, Secure Like a Pro."
 
 Your role is to analyse a business's cybersecurity self-assessment and deliver sharp, practical, SA-specific recommendations. You understand the local threat landscape: SIM swap fraud, SASSA and SAPO phishing campaigns, load shedding impacts on UPS and backup reliability, POPIA compliance obligations, and the budget constraints of Free State and broader SA SMEs.
 
@@ -110,8 +112,23 @@ to this specific industry where relevant.`;
     }
 
     try {
-      const parsed = JSON.parse(content);
+      // Strip markdown code fences and any text before/after the JSON object
+      const cleaned = content
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim();
+      
+      // Extract just the JSON object if there's text around it
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('[Clarity] No JSON object found in Gemini response');
+        return FALLBACK;
+      }
+      
+      const parsed = JSON.parse(jsonMatch[0]);
       const validated = OutputSchema.parse(parsed);
+      console.log('[Clarity] Successfully parsed and validated Gemini response');
       return validated;
     } catch (parseError) {
       console.error('[Clarity] Schema validation failed. Returning fallback.', parseError);

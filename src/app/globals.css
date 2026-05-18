@@ -56,8 +56,7 @@
     background-size: 24px 24px;
   }
 
-  /* .dark class remains unnecessary since dark is default, but keep for compatibility */
-  .dark { }
+
 }
 
 @layer base {

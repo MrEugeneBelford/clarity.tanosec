@@ -18,7 +18,6 @@ import {
   CalendarClock,
   ThumbsDown,
   ThumbsUp,
-  Mail,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,7 @@ import {
 
 import { questions, questionCategories } from "@/lib/questions";
 import { getRecommendations } from "@/lib/actions";
-import { saveLeadCapture, emailReport } from "@/lib/leadActions";
+import { saveLeadCapture } from "@/lib/leadActions";
 import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -465,12 +464,15 @@ export default function ClarityByTanosecPage() {
         <Card className="w-full max-w-lg text-center shadow-2xl animate-fade-in border-border/50 bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-3xl font-headline">
-                Your Report is Ready
+                Get Your Full Security Report
               </CardTitle>
+              <CardDescription className="text-base text-muted-foreground pt-2">
+                Enter your email and a Tanosec cybersecurity expert will send you a personalised follow-up based on your results. We typically respond within one business day.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-3 text-left">
-                <Label htmlFor="email" className="text-muted-foreground">Where should we send your results? (Optional)</Label>
+                <Label htmlFor="email" className="text-muted-foreground">Email (optional)</Label>
                 <Input
                   id="email"
                   type="email"
@@ -501,21 +503,22 @@ export default function ClarityByTanosecPage() {
                   className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90"
                   onClick={handleShowReport}
                 >
-                  View My Report
+                  Send Me My Results
                 </Button>
+                <p className="text-xs text-muted-foreground text-center leading-relaxed">
+                  By submitting you consent to Tanosec contacting you about your security posture in accordance with our{" "}
+                  <a
+                    href="https://tanosec.co.za/privacy-policy-2/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground transition-colors"
+                  >
+                    Privacy Policy
+                  </a>
+                  . POPIA compliant. No spam, ever.
+                </p>
               </div>
             </CardContent>
-            <CardFooter className="text-xs text-muted-foreground justify-center text-center leading-relaxed px-8 pb-8">
-              By submitting, you consent to Tanosec processing your info per our {' '}
-              <a
-                href="https://tanosec.co.za/privacy-policy-2/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground transition-colors"
-              >
-                Privacy Policy
-              </a>.
-            </CardFooter>
           </Card>
       );
     }
@@ -614,7 +617,7 @@ export default function ClarityByTanosecPage() {
           toast({
             variant: "destructive",
             title: "Invalid Email Address",
-            description: "Please enter a valid email address to unlock your full report.",
+            description: "Please enter a valid email address to get your report.",
           });
           return;
         }
@@ -643,8 +646,11 @@ export default function ClarityByTanosecPage() {
           <div className="flex flex-col items-center text-center">
             <Logo size="small" />
             <h1 className="text-3xl font-headline font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-              Your Security Posture Preview
+              Get Your Full Security Report
             </h1>
+            <p className="text-base text-muted-foreground mt-3 max-w-md mx-auto leading-relaxed">
+              A Tanosec cybersecurity expert will review your results and send you a personalised follow-up within one business day.
+            </p>
           </div>
 
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
@@ -679,7 +685,7 @@ export default function ClarityByTanosecPage() {
                     <Lock className="h-8 w-8 text-primary animate-pulse" />
                   </div>
                   <p className="font-headline font-bold text-xl text-foreground text-center">
-                    Enter your email to unlock your full security report
+                    Get your full security report — enter your email below to send your results.
                   </p>
                 </div>
 
@@ -697,7 +703,7 @@ export default function ClarityByTanosecPage() {
 
               <div className="space-y-3">
                 <h3 className="font-headline font-bold text-lg text-foreground">
-                  Your full security report includes:
+                  Your full report includes:
                 </h3>
                 <ul className="space-y-2 text-muted-foreground text-sm">
                   <li className="flex items-start gap-2">
@@ -725,7 +731,7 @@ export default function ClarityByTanosecPage() {
 
               <form onSubmit={handlePreviewSubmit} className="space-y-4 pt-4 border-t border-border/30">
                 <div className="space-y-2">
-                  <Label htmlFor="preview-email" className="text-sm font-semibold">Unlock your full report</Label>
+                  <Label htmlFor="preview-email" className="text-sm font-semibold">Email</Label>
                   <Input
                     id="preview-email"
                     type="email"
@@ -757,14 +763,14 @@ export default function ClarityByTanosecPage() {
                   size="lg"
                   className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
                 >
-                  Send My Full Report
+                  Send Me My Results
                 </Button>
               </form>
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4 text-center px-6 pb-6 pt-2 border-t border-border/20">
-              <p className="text-[10px] leading-relaxed text-muted-foreground max-w-md">
-                By submitting, you consent to Tanosec Cybersecurity contacting you about your posture in accordance with our{" "}
+              <p className="text-xs leading-relaxed text-muted-foreground max-w-md mx-auto">
+                By submitting you consent to Tanosec contacting you in accordance with our{" "}
                 <a
                   href="https://tanosec.co.za/privacy-policy-2/"
                   target="_blank"
@@ -772,13 +778,11 @@ export default function ClarityByTanosecPage() {
                   className="underline hover:text-foreground transition-colors"
                 >
                   Privacy Policy
-                </a>
-                . POPIA compliant. No spam, ever.
+                </a>{" "}
+                (https://tanosec.co.za/privacy-policy-2/). POPIA compliant. No spam, ever.
               </p>
-              <p className="text-[10px] text-muted-foreground/60 font-mono">
-                <a href="mailto:support@tanosec.co.za" className="hover:text-primary transition-colors">support@tanosec.co.za</a>
-                {" · "}
-                <a href="tel:+27621234244" className="hover:text-primary transition-colors">+27 621 234 244</a>
+              <p className="text-[10px] text-muted-foreground/80">
+                support@tanosec.co.za · +27 621 234 244
               </p>
             </CardFooter>
           </Card>
@@ -810,28 +814,6 @@ export default function ClarityByTanosecPage() {
 
       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : null;
 
-      const handleEmailReport = async () => {
-        toast({
-          title: "Sending...",
-          description: "Requesting your report email.",
-        });
-        await emailReport({
-          email,
-          score: Math.round(scorePercentage),
-          scoreLabel: interpretation.text,
-          sector: sector || 'Not specified',
-          companySize: companySize || 'Not specified',
-          risks: recommendations.risks,
-          strengths: recommendations.strengths,
-          recommendations: recommendations.recommendations,
-        }).catch((err) => console.error('[emailReport] Failed silently:', err));
-        
-        toast({
-          title: "Report requested!",
-          description: `We'll email your results to ${email} shortly.`,
-        });
-      };
-
       return (
         <div className="w-full max-w-5xl space-y-8 animate-fade-in">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -840,12 +822,6 @@ export default function ClarityByTanosecPage() {
                 <h1 className="text-3xl font-headline">Your Security Report</h1>
               </div>
             <div className="flex gap-2">
-              {email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
-                <Button variant="outline" onClick={handleEmailReport}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email My Report
-                </Button>
-              )}
               <Button onClick={handleRestart}>Start Over</Button>
             </div>
           </div>

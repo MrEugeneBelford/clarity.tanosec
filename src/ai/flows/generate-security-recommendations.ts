@@ -113,27 +113,24 @@ to this specific industry where relevant.`;
 
     console.log('[Clarity] Raw Gemini response (first 500 chars):', content.substring(0, 500));
 
+    const jsonStart = content.indexOf('{');
+    const jsonEnd = content.lastIndexOf('}');
+
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+      console.error('[Clarity] No JSON object found in Gemini response. Raw content:', content.substring(0, 300));
+      return FALLBACK;
+    }
+
+    const jsonString = content.slice(jsonStart, jsonEnd + 1);
+
     try {
-      // Strip markdown code fences and any text before/after the JSON object
-      const cleaned = content
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/```\s*$/i, '')
-        .trim();
-      
-      // Extract just the JSON object if there's text around it
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}(?=[^}]*$)/) || cleaned.match(/\{[\s\S]*\}/);;
-      if (!jsonMatch) {
-        console.error('[Clarity] No JSON object found in Gemini response');
-        return FALLBACK;
-      }
-      
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonString);
       const validated = OutputSchema.parse(parsed);
       console.log('[Clarity] Successfully parsed and validated Gemini response');
       return validated;
     } catch (parseError) {
-      console.error('[Clarity] Schema validation failed. Returning fallback.', parseError);
+      console.error('[Clarity] Parse/validation failed:', parseError);
+      console.error('[Clarity] Attempted to parse:', jsonString.substring(0, 300));
       return FALLBACK;
     }
   } catch (err) {

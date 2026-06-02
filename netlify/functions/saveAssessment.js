@@ -1,6 +1,7 @@
 // netlify/functions/saveAssessment.js
 const questions = require('../../src/lib/questions-manifest.json');
-const { sendNotification } = require('../../src/lib/notifications');
+const { sendNotification } = require('./notifications-helper');
+
 
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
@@ -53,15 +54,15 @@ exports.handler = async (event, context) => {
 
     // Clean, direct layout format with zero lobster/extraneous emojis
     const notificationBody = `
-🛡️ Clarity Assessment Report Submitted
+Clarity Assessment Report Submitted
 
-[+] CLIENT INFORMATION:
+CLIENT INFORMATION:
 - Name: ${contactInfo.name || 'Not Disclosed'}
 - Business: ${contactInfo.company || 'Not Disclosed'}
 - Email: ${contactInfo.email || 'Not Disclosed'}
 - Phone: ${contactInfo.phone || 'Not Disclosed'}
 
-[+] METRIC METERS:
+METRIC METERS:
 - Aggregated Score: ${score} / ${maxScore}
 
 ${answersReport}
@@ -69,7 +70,7 @@ ${answersReport}
 
     // Fire text payload to notification stream
     await sendNotification({
-      subject: `🛡️ Clarity Snapshot: ${contactInfo.company || contactInfo.name || 'New Lead'}`,
+      subject: `Clarity Snapshot: ${contactInfo.company || contactInfo.name || 'New Lead'}`,
       text: notificationBody,
       data: { ...payload, formattedAnswers: answersReport }
     });

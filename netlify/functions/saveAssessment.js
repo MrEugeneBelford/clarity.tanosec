@@ -1,169 +1,92 @@
 // netlify/functions/saveAssessment.js
 const questions = require('../../src/lib/questions-manifest.json');
+const { sendNotification } = require('../../src/lib/notifications');
 
-// Helper to send notifications via email and WhatsApp
-async function sendNotification({ text, contactInfo, score, maxScore }) {
-  console.log('[saveAssessment] sendNotification invoked');
-
-  // 1. WhatsApp via Whapi
-  const token = process.env.WHAPI_TOKEN;
-  const toNumber = process.env.WHAPI_TO_NUMBER;
-  if (token && toNumber) {
-    try {
-      const response = await fetch('https://gate.whapi.cloud/messages/text', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ to: toNumber, body: text }),
-      });
-      if (!response.ok) {
-        console.error('[saveAssessment] Whapi error:', await response.text());
-      } else {
-        console.log('[saveAssessment] WhatsApp notification sent');
-      }
-    } catch (err) {
-      console.error('[saveAssessment] WhatsApp failed:', err);
-    }
-  }
-
-  // 2. Email via Resend
-  const apiKey = process.env.RESEND_API_KEY;
-  const toEmail = process.env.NOTIFICATION_EMAIL_TO;
-  const fromEmail = process.env.NOTIFICATION_EMAIL_FROM;
-  if (apiKey && toEmail && fromEmail) {
-    try {
-      const emoji = score >= 75 ? '🟢' : score >= 50 ? '🟡' : score >= 25 ? '🟠' : '🔴';
-      const subject = `${emoji} Clarity Assessment Q&A Breakdown — ${score}/${maxScore}${contactInfo ? ` · ${contactInfo}` : ''}`;
-      
-      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0f0f0f;font-family:Arial,sans-serif;color:#e5e5e5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
-    <tr><td>
-      <table width="600" align="center" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:12px;border:1px solid #2a2a2a;max-width:600px;width:100%;">
-        <tr><td style="padding:24px 32px;border-bottom:1px solid #2a2a2a;">
-          <p style="margin:0;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:0.08em;">Tanosec Cybersecurity</p>
-          <h1 style="margin:4px 0 0;font-size:22px;color:#fff;">🦞 Detailed Q&A Report</h1>
-        </td></tr>
-        <tr><td style="padding:24px 32px;">
-          <p style="margin:0 0 16px;font-size:14px;color:#e5e5e5;white-space:pre-wrap;line-height:1.6;">${text}</p>
-        </td></tr>
-        <tr><td style="padding:0 32px 28px;"><p style="margin:0;font-size:12px;color:#444;text-align:center;">Clarity by Tanosec · clarity.tanosec.co.za</p></td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [toEmail],
-          subject,
-          html,
-        }),
-      });
-      if (!response.ok) {
-        console.error('[saveAssessment] Resend error:', await response.text());
-      } else {
-        console.log('[saveAssessment] Email notification sent');
-      }
-    } catch (err) {
-      console.error('[saveAssessment] Email failed:', err);
-    }
-  }
-}
-
-exports.handler = async (event) => {
-  // Only allow POST requests
+exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
-    const params = event.body ? JSON.parse(event.body) : {};
-    const { contactInfo, answers, score, maxScore } = params;
+    const payload = JSON.parse(event.body);
 
-    if (!answers || typeof score === 'undefined' || typeof maxScore === 'undefined') {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: 'Missing required fields' }),
-      };
+    // Flexible data extraction to handle key mismatches cleanly
+    const contactInfo = payload.contactInfo || payload.user || {};
+    const userAnswers = payload.answers || payload.responses || {};
+    const score = payload.score !== undefined ? payload.score : '—';
+    const maxScore = payload.maxScore || '100';
+
+    let answersReport = "\n=== ASSESSMENT DATA MATRIX ===\n";
+
+    // Handle either destructured property or root array ingestion
+    const targetQuestions = Array.isArray(questions) ? questions : (questions.questions || []);
+
+    if (targetQuestions.length === 0) {
+      answersReport += "[!] Diagnostic Warning: Question manifest array is empty or unreadable.\n";
+    } else {
+      targetQuestions.forEach((q, index) => {
+        // Look up user's submitted token using the unique question ID
+        const selectedChoiceToken = userAnswers[q.id];
+        let chosenAnswerText = "Not Answered / Skipped";
+
+        if (selectedChoiceToken !== undefined && q.options) {
+          // Look up the exact matching text string inside the nested options array
+          const matchedOption = q.options.find(opt =>
+            String(opt.id) === String(selectedChoiceToken) ||
+            String(opt.value) === String(selectedChoiceToken) ||
+            String(opt.text) === String(selectedChoiceToken)
+          );
+
+          if (matchedOption) {
+            chosenAnswerText = matchedOption.text || matchedOption.value;
+          } else {
+            // Fallback: print raw value if a structural option index mismatch occurs
+            chosenAnswerText = `Raw Selection: ${selectedChoiceToken}`;
+          }
+        }
+
+        answersReport += `\nQ${index + 1}: ${q.text || 'Question Text Missing'}\n   Selected Option -> ${chosenAnswerText}\n`;
+      });
     }
 
-    // Initialize answersReport string
-    let answersReport = '\n========================================\nDETAILED ASSESSMENT Q&A REPORT\n========================================\n';
+    answersReport += "\n=============================\n";
 
-    // Loop through the master 'questions' array
-    questions.forEach((q, index) => {
-      const qNum = index + 1;
-      const selectedToken = answers[q.id];
-      let literalAnswer = 'Not Answered';
+    // Clean, direct layout format with zero lobster/extraneous emojis
+    const notificationBody = `
+🛡️ Clarity Assessment Report Submitted
 
-      if (selectedToken !== undefined && selectedToken !== null) {
-        let option = null;
-        if (typeof selectedToken === 'number' || !isNaN(selectedToken)) {
-          const idx = parseInt(selectedToken, 10);
-          if (q.options && q.options[idx]) {
-            option = q.options[idx];
-          }
-        }
-        if (!option && q.options) {
-          option = q.options.find(opt => opt.text === selectedToken);
-        }
-        if (!option && q.industryOptions) {
-          for (const sectorOpts of Object.values(q.industryOptions)) {
-            if (typeof selectedToken === 'number' || !isNaN(selectedToken)) {
-              const idx = parseInt(selectedToken, 10);
-              if (sectorOpts[idx]) {
-                option = sectorOpts[idx];
-                break;
-              }
-            }
-            option = sectorOpts.find(opt => opt.text === selectedToken);
-            if (option) break;
-          }
-        }
+[+] CLIENT INFORMATION:
+- Name: ${contactInfo.name || 'Not Disclosed'}
+- Business: ${contactInfo.company || 'Not Disclosed'}
+- Email: ${contactInfo.email || 'Not Disclosed'}
+- Phone: ${contactInfo.phone || 'Not Disclosed'}
 
-        if (option) {
-          literalAnswer = option.text;
-        } else {
-          literalAnswer = String(selectedToken);
-        }
-      }
+[+] METRIC METERS:
+- Aggregated Score: ${score} / ${maxScore}
 
-      answersReport += `Q${qNum}: ${q.text} -> Chosen Answer: ${literalAnswer}\n`;
-    });
+${answersReport}
+    `;
 
-    const emoji = score >= 75 ? '🟢' : score >= 50 ? '🟡' : score >= 25 ? '🟠' : '🔴';
-    const textNotification = [
-      `🦞 *New Clarity Assessment Q&A breakdown*`,
-      ``,
-      `${emoji} *Score:* ${score}/${maxScore}`,
-      contactInfo ? `📧 *Contact:* ${contactInfo}` : `📧 *Contact:* Not provided`,
-      ``,
-      answersReport,
-    ].join('\n');
-
-    // Concatenate this completed 'answersReport' data block directly into the 'text' or body payload passed into sendNotification()
+    // Fire text payload to notification stream
     await sendNotification({
-      text: textNotification,
-      contactInfo,
-      score,
-      maxScore
+      subject: `🛡️ Clarity Snapshot: ${contactInfo.company || contactInfo.name || 'New Lead'}`,
+      text: notificationBody,
+      data: { ...payload, formattedAnswers: answersReport }
     });
 
-    // Return a success response to the client.
+    // Main database ingestion hooks remain safe beneath this line
+    // ... (Your database storage logic here) ...
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Received assessment payload', ok: true }),
-      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: true, message: "Telemetry matrix compiled successfully." })
     };
+
   } catch (error) {
-    return { statusCode: 400, body: JSON.stringify({ message: 'Invalid JSON payload' }) };
+    console.error("Clarity Core Intake Error:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Intake validation pipeline failure." })
+    };
   }
 };

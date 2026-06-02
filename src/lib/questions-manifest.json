@@ -1,0 +1,799 @@
+[
+  {
+    "id": "q1",
+    "category": "network",
+    "text": "Do you use a firewall to protect your business internet connection?",
+    "options": [
+      {
+        "text": "Yes, actively managed and configured",
+        "score": 10
+      },
+      {
+        "text": "Yes, but it's the basic one from my ISP",
+        "score": 5
+      },
+      {
+        "text": "No, or I don't know",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q2",
+    "category": "network",
+    "text": "Is your Wi-Fi network using WPA3 or WPA2 encryption with a strong, unique password?",
+    "options": [
+      {
+        "text": "Yes, WPA3 or WPA2 with a strong unique password",
+        "score": 10
+      },
+      {
+        "text": "We use a password but I'm not sure of the encryption type",
+        "score": 4
+      },
+      {
+        "text": "No, our Wi-Fi is open or uses a weak/default password",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q3",
+    "category": "network",
+    "text": "Are guest devices kept on a separate Wi-Fi network from business systems?",
+    "options": [
+      {
+        "text": "Yes, we have a dedicated guest network",
+        "score": 10
+      },
+      {
+        "text": "No, all devices use the same network",
+        "score": 0
+      },
+      {
+        "text": "We don't allow guest devices",
+        "score": 10
+      }
+    ]
+  },
+  {
+    "id": "q4",
+    "category": "access",
+    "text": "Do your employees use Multi-Factor Authentication (MFA) to access systems or email?",
+    "options": [
+      {
+        "text": "Yes, MFA is mandatory for all critical systems and email",
+        "score": 10
+      },
+      {
+        "text": "It's optional or used for some systems only",
+        "score": 4
+      },
+      {
+        "text": "No, we do not use MFA",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q5",
+    "category": "access",
+    "text": "Are user accounts removed or updated promptly when staff leave or change roles?",
+    "options": [
+      {
+        "text": "Yes, within 24 hours of a change",
+        "score": 10
+      },
+      {
+        "text": "It can take a few days or is sometimes missed",
+        "score": 3
+      },
+      {
+        "text": "This process is not formally managed",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q6",
+    "category": "access",
+    "text": "Do you enforce strong password policies across all systems?",
+    "options": [
+      {
+        "text": "Yes, we enforce length, complexity, and rotation",
+        "score": 10
+      },
+      {
+        "text": "We have a policy but it is not strictly enforced",
+        "score": 5
+      },
+      {
+        "text": "No formal password policy exists",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q7",
+    "category": "data",
+    "text": "Is your important data backed up regularly, and are backups tested?",
+    "options": [
+      {
+        "text": "Yes, automated daily backups that are tested quarterly",
+        "score": 10
+      },
+      {
+        "text": "Backups are infrequent or never tested",
+        "score": 3
+      },
+      {
+        "text": "We do not back up our data",
+        "score": 0
+      }
+    ],
+    "industryOptions": {
+      "Legal & Compliance": [
+        {
+          "text": "Yes, client files and matter data backed up daily with offsite copy",
+          "score": 10
+        },
+        {
+          "text": "Backups run but client files are not specifically included",
+          "score": 4
+        },
+        {
+          "text": "No reliable backup system in place",
+          "score": 0
+        }
+      ],
+      "Healthcare & Medical": [
+        {
+          "text": "Yes, patient records backed up daily and encrypted, tested quarterly",
+          "score": 10
+        },
+        {
+          "text": "Backups exist but patient records are not separately verified",
+          "score": 4
+        },
+        {
+          "text": "No reliable backup for patient data",
+          "score": 0
+        }
+      ],
+      "Finance & Accounting": [
+        {
+          "text": "Yes, financial data and client records backed up daily with offsite copy",
+          "score": 10
+        },
+        {
+          "text": "Backups run but financial records not specifically verified",
+          "score": 4
+        },
+        {
+          "text": "No reliable financial data backup",
+          "score": 0
+        }
+      ],
+      "Retail & E-commerce": [
+        {
+          "text": "Yes, transaction data and inventory backed up daily",
+          "score": 10
+        },
+        {
+          "text": "Backups exist but POS and transaction data not specifically covered",
+          "score": 4
+        },
+        {
+          "text": "No reliable backup in place",
+          "score": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "q8",
+    "category": "data",
+    "text": "Do you store or send sensitive data in encrypted form (e.g. client files)?",
+    "options": [
+      {
+        "text": "Yes, all sensitive data is encrypted at rest and in transit",
+        "score": 10
+      },
+      {
+        "text": "Some sensitive data is encrypted, but not all",
+        "score": 5
+      },
+      {
+        "text": "No, we do not use encryption",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q15",
+    "category": "data",
+    "text": "Do you have a data protection policy that staff are aware of?",
+    "options": [
+      {
+        "text": "Yes, we have a clear policy that is regularly reviewed",
+        "score": 10
+      },
+      {
+        "text": "We have a policy, but it may be outdated or not well-known",
+        "score": 5
+      },
+      {
+        "text": "No, we do not have a formal policy",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q9",
+    "category": "endpoint",
+    "text": "Do all your computers and devices run up-to-date antivirus or EDR software?",
+    "options": [
+      {
+        "text": "Yes, all endpoints are protected and centrally managed",
+        "score": 10
+      },
+      {
+        "text": "Most devices are protected, but it's not managed",
+        "score": 5
+      },
+      {
+        "text": "No, or protection is expired/out-of-date",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q10",
+    "category": "endpoint",
+    "text": "Are your systems regularly updated with security patches (Windows, software)?",
+    "options": [
+      {
+        "text": "Yes, we use an automated patch management system",
+        "score": 10
+      },
+      {
+        "text": "Updates are installed manually and can be delayed",
+        "score": 4
+      },
+      {
+        "text": "Updates are rarely or never installed",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q16",
+    "category": "endpoint",
+    "text": "Can you track or remotely wipe a lost or stolen laptop or phone?",
+    "options": [
+      {
+        "text": "Yes, we have Mobile Device Management (MDM) in place",
+        "score": 10
+      },
+      {
+        "text": "We can track some devices but cannot wipe them",
+        "score": 3
+      },
+      {
+        "text": "No, we have no remote capabilities",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q11",
+    "category": "training",
+    "text": "Have your employees received basic cybersecurity training in the last 12 months?",
+    "options": [
+      {
+        "text": "Yes, all staff have completed recent training",
+        "score": 10
+      },
+      {
+        "text": "Training was provided, but not recently or to everyone",
+        "score": 4
+      },
+      {
+        "text": "No training is provided",
+        "score": 0
+      }
+    ],
+    "industryOptions": {
+      "Legal & Compliance": [
+        {
+          "text": "Yes, including training on client confidentiality, phishing, and matter data handling",
+          "score": 10
+        },
+        {
+          "text": "Basic security awareness only, no legal-specific scenarios",
+          "score": 5
+        },
+        {
+          "text": "No formal security training",
+          "score": 0
+        }
+      ],
+      "Healthcare & Medical": [
+        {
+          "text": "Yes, including patient data handling, POPIA, and medical record security",
+          "score": 10
+        },
+        {
+          "text": "Basic awareness only, no healthcare-specific scenarios",
+          "score": 5
+        },
+        {
+          "text": "No formal security training",
+          "score": 0
+        }
+      ],
+      "Finance & Accounting": [
+        {
+          "text": "Yes, including financial fraud, social engineering, and client data protection",
+          "score": 10
+        },
+        {
+          "text": "Basic awareness only, no finance-specific scenarios",
+          "score": 5
+        },
+        {
+          "text": "No formal security training",
+          "score": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "q12",
+    "category": "training",
+    "text": "Do you conduct phishing simulations or test staff awareness regularly?",
+    "options": [
+      {
+        "text": "Yes, we run tests at least quarterly",
+        "score": 10
+      },
+      {
+        "text": "We have done it once or twice",
+        "score": 5
+      },
+      {
+        "text": "No, we have never tested staff awareness",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q17",
+    "category": "training",
+    "text": "Are staff encouraged to report suspicious emails or activity?",
+    "options": [
+      {
+        "text": "Yes, we have a clear process and a positive reporting culture",
+        "score": 10
+      },
+      {
+        "text": "Staff can report issues, but there's no formal process",
+        "score": 5
+      },
+      {
+        "text": "No, reporting is not actively encouraged",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q13",
+    "category": "incident",
+    "text": "Do you have a cyber incident response plan or know who to call during a breach?",
+    "options": [
+      {
+        "text": "Yes, we have a documented and tested plan",
+        "score": 10
+      },
+      {
+        "text": "We have an idea of what to do, but it's not formal",
+        "score": 4
+      },
+      {
+        "text": "No, we don't have a plan",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q18",
+    "category": "incident",
+    "text": "Are your systems monitored for unusual or unauthorized activity?",
+    "options": [
+      {
+        "text": "Yes, we have active monitoring and alerting in place",
+        "score": 10
+      },
+      {
+        "text": "We rely on basic system logs only",
+        "score": 4
+      },
+      {
+        "text": "No, we do not monitor our systems",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q14",
+    "category": "incident",
+    "text": "Do you have cyber insurance that covers data breaches and ransomware?",
+    "options": [
+      {
+        "text": "Yes, we have a comprehensive cyber insurance policy",
+        "score": 10
+      },
+      {
+        "text": "We have some liability insurance but are unsure if it covers cyber incidents",
+        "score": 3
+      },
+      {
+        "text": "No, we do not have cyber insurance",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q19",
+    "category": "compliance",
+    "text": "Are you aware of any legal obligations (e.g., POPIA) regarding data protection?",
+    "options": [
+      {
+        "text": "Yes, and we have taken steps to comply",
+        "score": 10
+      },
+      {
+        "text": "We are aware but haven't taken specific action",
+        "score": 4
+      },
+      {
+        "text": "No, we are not aware of our obligations",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q20",
+    "category": "compliance",
+    "text": "Have you performed a cyber risk assessment in the last 12 months?",
+    "options": [
+      {
+        "text": "Yes, and we have a plan to address the identified risks",
+        "score": 10
+      },
+      {
+        "text": "Yes, but we haven't acted on the findings",
+        "score": 5
+      },
+      {
+        "text": "No, we have not performed a risk assessment",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q21",
+    "category": "compliance",
+    "text": "Do you have a nominated Information Officer (as required by POPIA) who is responsible for data protection?",
+    "options": [
+      {
+        "text": "Yes, we have a designated Information Officer",
+        "score": 10
+      },
+      {
+        "text": "Someone handles it informally but it's not formalised",
+        "score": 4
+      },
+      {
+        "text": "No, we have not appointed anyone",
+        "score": 0
+      }
+    ],
+    "industryOptions": {
+      "Legal & Compliance": [
+        {
+          "text": "Yes, we have a designated Information Officer and a compliant PAIA manual",
+          "score": 10
+        },
+        {
+          "text": "Information Officer appointed but PAIA manual not current",
+          "score": 5
+        },
+        {
+          "text": "No Information Officer appointed",
+          "score": 0
+        }
+      ],
+      "Healthcare & Medical": [
+        {
+          "text": "Yes, Information Officer appointed and patient consent processes are documented",
+          "score": 10
+        },
+        {
+          "text": "Informal compliance only, not fully documented",
+          "score": 4
+        },
+        {
+          "text": "No formal POPIA compliance measures in place",
+          "score": 0
+        }
+      ],
+      "Finance & Accounting": [
+        {
+          "text": "Yes, Information Officer appointed and client data retention policies documented",
+          "score": 10
+        },
+        {
+          "text": "Some compliance measures but not formalised",
+          "score": 4
+        },
+        {
+          "text": "No formal POPIA compliance in place",
+          "score": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "q22",
+    "category": "network",
+    "text": "During load shedding, are your critical systems (router, server, NAS) protected by a UPS and do they shut down safely?",
+    "options": [
+      {
+        "text": "Yes, UPS in place with safe shutdown configured",
+        "score": 10
+      },
+      {
+        "text": "We have a UPS but shutdown is not automated",
+        "score": 5
+      },
+      {
+        "text": "No UPS — systems lose power abruptly during outages",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q23",
+    "category": "training",
+    "text": "Are staff aware of South African-specific scams such as SIM swap fraud, fake SARS emails, and CEO impersonation attacks?",
+    "options": [
+      {
+        "text": "Yes, we have specifically trained on these local threats",
+        "score": 10
+      },
+      {
+        "text": "Staff have general phishing awareness but not SA-specific threats",
+        "score": 5
+      },
+      {
+        "text": "No, our staff have not been trained on these scenarios",
+        "score": 0
+      }
+    ]
+  },
+  {
+    "id": "q24",
+    "category": "access",
+    "text": "Do you control and monitor what access third-party vendors or IT contractors have to your systems?",
+    "options": [
+      {
+        "text": "Yes, vendor access is documented, time-limited, and audited",
+        "score": 10
+      },
+      {
+        "text": "Vendors have access but it's not formally managed",
+        "score": 3
+      },
+      {
+        "text": "We don't track or control third-party system access",
+        "score": 0
+      }
+    ],
+    "industryOptions": {
+      "Legal & Compliance": [
+        {
+          "text": "Yes, IT contractors sign NDAs and access is matter-specific and time-limited",
+          "score": 10
+        },
+        {
+          "text": "Vendors have access but no formal NDA or access controls",
+          "score": 3
+        },
+        {
+          "text": "Vendor access is not tracked or controlled",
+          "score": 0
+        }
+      ],
+      "Healthcare & Medical": [
+        {
+          "text": "Yes, vendors cannot access patient records and access is logged",
+          "score": 10
+        },
+        {
+          "text": "Vendor access exists but patient data segregation not enforced",
+          "score": 3
+        },
+        {
+          "text": "Vendor access is not controlled or monitored",
+          "score": 0
+        }
+      ],
+      "Finance & Accounting": [
+        {
+          "text": "Yes, vendors sign NDAs, access is time-limited and does not include client financial data",
+          "score": 10
+        },
+        {
+          "text": "Access exists but financial data is not specifically excluded",
+          "score": 3
+        },
+        {
+          "text": "No vendor access controls in place",
+          "score": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "q25",
+    "category": "data",
+    "text": "Are your Microsoft 365 or Google Workspace accounts secured with MFA and reviewed for suspicious activity?",
+    "options": [
+      {
+        "text": "Yes, MFA enabled and we review access/activity logs",
+        "score": 10
+      },
+      {
+        "text": "MFA is enabled but we don't review activity logs",
+        "score": 6
+      },
+      {
+        "text": "No, these accounts are not specifically secured or monitored",
+        "score": 0
+      }
+    ],
+    "industryOptions": {
+      "Legal & Compliance": [
+        {
+          "text": "Yes, MFA enabled, activity reviewed, and legal documents access-controlled by matter",
+          "score": 10
+        },
+        {
+          "text": "MFA enabled but document access not matter-specific",
+          "score": 5
+        },
+        {
+          "text": "No specific security measures on cloud accounts",
+          "score": 0
+        }
+      ],
+      "Healthcare & Medical": [
+        {
+          "text": "Yes, MFA enabled, patient data not stored in general cloud folders",
+          "score": 10
+        },
+        {
+          "text": "MFA enabled but patient data storage not specifically controlled",
+          "score": 5
+        },
+        {
+          "text": "No specific cloud account security",
+          "score": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "q26",
+    "category": "ai_governance",
+    "text": "Do staff use AI tools (such as ChatGPT, Microsoft Copilot, or Gemini) for work tasks, and does your business have a policy governing what data may be shared with them?",
+    "options": [
+      {
+        "text": "Yes, we use AI tools and have a clear written policy on data sharing",
+        "score": 10
+      },
+      {
+        "text": "Staff use AI tools informally but there is no formal policy",
+        "score": 3
+      },
+      {
+        "text": "We do not use AI tools in our business",
+        "score": 7
+      },
+      {
+        "text": "I am not sure whether staff are using AI tools",
+        "score": 0
+      }
+    ],
+    "industryOptions": {
+      "Legal & Compliance": [
+        {
+          "text": "Yes, we have an AI policy that explicitly prohibits inputting client or privileged data into public AI tools",
+          "score": 10
+        },
+        {
+          "text": "Staff use AI tools but there is no policy on client or privileged data",
+          "score": 2
+        },
+        {
+          "text": "We do not use AI tools",
+          "score": 7
+        },
+        {
+          "text": "I am not sure whether staff use AI tools",
+          "score": 0
+        }
+      ],
+      "Healthcare & Medical": [
+        {
+          "text": "Yes, we have an AI policy that explicitly prohibits inputting patient data into public AI tools",
+          "score": 10
+        },
+        {
+          "text": "Staff use AI tools but there is no policy on patient data",
+          "score": 2
+        },
+        {
+          "text": "We do not use AI tools",
+          "score": 7
+        },
+        {
+          "text": "I am not sure whether staff use AI tools",
+          "score": 0
+        }
+      ],
+      "Finance & Accounting": [
+        {
+          "text": "Yes, we have an AI policy covering client financial data and regulatory requirements",
+          "score": 10
+        },
+        {
+          "text": "Staff use AI tools but no policy covers client financial data",
+          "score": 2
+        },
+        {
+          "text": "We do not use AI tools",
+          "score": 7
+        },
+        {
+          "text": "I am not sure whether staff use AI tools",
+          "score": 0
+        }
+      ]
+    }
+  },
+  {
+    "id": "q27",
+    "category": "ai_governance",
+    "text": "Are AI-generated outputs (reports, advice, emails, documents) reviewed by a qualified person before being used in client-facing work or business decisions?",
+    "options": [
+      {
+        "text": "Yes, all AI outputs are reviewed before use",
+        "score": 10
+      },
+      {
+        "text": "Sometimes, but not consistently",
+        "score": 5
+      },
+      {
+        "text": "No, AI outputs are used directly without review",
+        "score": 0
+      },
+      {
+        "text": "We do not use AI tools",
+        "score": 8
+      }
+    ]
+  }
+]

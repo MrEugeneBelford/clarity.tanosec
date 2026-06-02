@@ -1,5 +1,5 @@
 // netlify/functions/saveAssessment.js
-const { questions } = require('../../src/lib/questions');
+const questions = require('../../src/lib/questions-manifest.json');
 
 // Helper to send notifications via email and WhatsApp
 async function sendNotification({ text, contactInfo, score, maxScore }) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Shield,
@@ -47,7 +47,7 @@ import {
 
 import { questions, questionCategories } from "@/lib/questions";
 import { getRecommendations } from "@/lib/actions";
-import { saveLeadCapture } from "@/lib/leadActions";
+import { saveLeadCapture, emailReport } from "@/lib/leadActions";
 import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -126,6 +126,7 @@ export default function ClarityByTanosecPage() {
     useState<GenerateSecurityRecommendationsOutput | null>(null);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [isPreviewResults, setIsPreviewResults] = useState(false);
+  const notificationSentRef = useRef(false);
 
   // Restore answers from sessionStorage on mount
   useEffect(() => {
@@ -221,15 +222,32 @@ export default function ClarityByTanosecPage() {
         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
 
-      saveLeadCapture({
-        email: email,
-        newsletterOptIn,
-        score: Math.round(scorePercentage),
-        scoreLabel: getScoreInterpretation().text,
-        sector: sector || undefined,
-        companySize: companySize || undefined,
-        worstCategory: worstCategoryName || undefined,
-      }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+
+      // Fire email report automatically — do not await, errors are handled gracefully
+      if (recommendations) {
+        const enrichedCategoryScores = Object.fromEntries(
+          Object.entries(categoryScores).map(([catId, s]) => [
+            catId,
+            {
+              name: questionCategories[catId]?.name ?? catId,
+              score: s.score,
+              maxScore: s.maxScore,
+              percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
+            },
+          ])
+        );
+        emailReport({
+          email,
+          score: Math.round(scorePercentage),
+          scoreLabel: getScoreInterpretation().text,
+          sector: sector || '',
+          companySize: companySize || '',
+          categoryScores: enrichedCategoryScores,
+          risks: recommendations.risks,
+          strengths: recommendations.strengths,
+          recommendations: recommendations.recommendations,
+        }).catch((err) => console.error('[emailReport] Failed silently:', err));
+      }
 
       setStep(totalQuestions + 3); // Go straight to full results
     } else {
@@ -375,6 +393,34 @@ export default function ClarityByTanosecPage() {
         });
     }
   }, [isLoading, answers, totalQuestions, toast, score, maxScore, categoryScores, sector, companySize]);
+
+  // Fire notification after recommendations are loaded
+  useEffect(() => {
+    if (recommendations && email && !notificationSentRef.current) {
+      notificationSentRef.current = true;
+      const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+      const getScoreInterpretation = () => {
+        if (scorePercentage < 25) return { text: "Critical Risk" };
+        if (scorePercentage < 50) return { text: "High Risk" };
+        if (scorePercentage < 70) return { text: "Moderate Risk" };
+        if (scorePercentage < 85) return { text: "Low Risk" };
+        return { text: "Strong Posture" };
+      };
+      const worstCategory = Object.entries(categoryScores)
+        .filter(([, s]) => s.count > 0)
+        .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+      const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+      saveLeadCapture({
+        email,
+        newsletterOptIn,
+        score: Math.round(scorePercentage),
+        scoreLabel: getScoreInterpretation().text,
+        sector: sector || undefined,
+        companySize: companySize || undefined,
+        worstCategory: worstCategoryName || undefined,
+      }).catch((err) => console.error("[leadCapture] Failed silently:", err));
+    }
+  }, [recommendations, email, newsletterOptIn, score, maxScore, categoryScores, sector, companySize]);
 
   const renderContent = () => {
     if (isStart) {
@@ -636,6 +682,32 @@ export default function ClarityByTanosecPage() {
           companySize: companySize || undefined,
           worstCategory: worstCategoryName || undefined,
         }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+
+        // Fire email report automatically — do not await, errors are handled gracefully
+        if (recommendations) {
+          const enrichedCategoryScores = Object.fromEntries(
+            Object.entries(categoryScores).map(([catId, s]) => [
+              catId,
+              {
+                name: questionCategories[catId]?.name ?? catId,
+                score: s.score,
+                maxScore: s.maxScore,
+                percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
+              },
+            ])
+          );
+          emailReport({
+            email,
+            score: Math.round(scorePercentage),
+            scoreLabel: interpretation.text,
+            sector: sector || '',
+            companySize: companySize || '',
+            categoryScores: enrichedCategoryScores,
+            risks: recommendations.risks,
+            strengths: recommendations.strengths,
+            recommendations: recommendations.recommendations,
+          }).catch((err) => console.error('[emailReport] Failed silently:', err));
+        }
 
         setIsPreviewResults(false);
         setStep(totalQuestions + 3); // Go to results

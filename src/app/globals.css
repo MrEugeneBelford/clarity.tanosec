@@ -7,10 +7,9 @@
 @tailwind components;
 @tailwind utilities;
 
-
 @layer base {
   :root {
-    /* Premium Dark Theme */
+    /* Premium Dark Theme with brand color #bef051 */
     --background: 240 5.9% 4.1%; /* zinc-950 #09090b */
     --foreground: 0 0% 98%;
     
@@ -20,8 +19,8 @@
     --popover: 240 5.9% 7%;
     --popover-foreground: 0 0% 98%;
     
-    --primary: 142 71% 45%; /* cyber-green #22c55e */
-    --primary-foreground: 0 0% 100%; /* white text on primary */
+    --primary: 82 84% 63%; /* brand lime green #bef051 */
+    --primary-foreground: 0 0% 0%; /* black text on primary for contrast */
     
     --secondary: 240 3.7% 15.9%; /* zinc-800 */
     --secondary-foreground: 0 0% 98%;
@@ -29,18 +28,18 @@
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%; /* zinc-400 */
     
-    --accent: 142 71% 45%; /* cyber-green */
-    --accent-foreground: 0 0% 100%;
+    --accent: 82 84% 63%; /* brand lime green */
+    --accent-foreground: 0 0% 0%;
     
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 142 71% 45%;
+    --ring: 82 84% 63%;
     
     /* Charts */
-    --chart-1: 142 71% 45%;
+    --chart-1: 82 84% 63%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
@@ -52,11 +51,54 @@
 
 @layer utilities {
   .bg-dot-pattern {
-    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(190, 240, 81, 0.03) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
+  /* Subtle animated background gradient */
+  .bg-subtle-animation {
+    background: 
+      radial-gradient(ellipse at 20% 80%, rgba(190, 240, 81, 0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(190, 240, 81, 0.02) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(190, 240, 81, 0.015) 0%, transparent 70%);
+    animation: subtle-gradient-shift 20s ease-in-out infinite;
+  }
 
+  /* Floating particles animation */
+  .bg-particles {
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(190, 240, 81, 0.04) 0%, transparent 2%),
+      radial-gradient(circle at 75% 75%, rgba(190, 240, 81, 0.03) 0%, transparent 1.5%),
+      radial-gradient(circle at 50% 10%, rgba(190, 240, 81, 0.035) 0%, transparent 1%),
+      radial-gradient(circle at 10% 60%, rgba(190, 240, 81, 0.025) 0%, transparent 1.2%),
+      radial-gradient(circle at 90% 40%, rgba(190, 240, 81, 0.03) 0%, transparent 1.8%);
+    background-size: 100% 100%;
+    animation: particles-drift 30s linear infinite;
+  }
+}
+
+@keyframes subtle-gradient-shift {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%, 50% 50%;
+  }
+  25% {
+    background-position: 100% 0%, 0% 100%, 75% 25%;
+  }
+  50% {
+    background-position: 50% 50%, 50% 50%, 50% 75%;
+  }
+  75% {
+    background-position: 100% 100%, 0% 0%, 25% 75%;
+  }
+}
+
+@keyframes particles-drift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 50%, 100% 50%;
+  }
+  100% {
+    background-position: 0% 100%, 100% 0%, 50% 100%, 0% 150%, 100% 150%;
+  }
 }
 
 @layer base {

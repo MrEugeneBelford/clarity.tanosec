@@ -10,6 +10,9 @@ export async function saveLeadCapture(data: {
   sector?: string;
   companySize?: string;
   worstCategory?: string;
+  categoryScores?: Record<string, { name: string; score: number; maxScore: number; percentage: number }>;
+  risks?: string[];
+  recommendations?: { recommendation: string; priority: string }[];
 }): Promise<{ success: boolean; error?: string }> {
   try {
     // Basic email validation if provided
@@ -89,7 +92,6 @@ export async function emailReport(
   try {
     const apiKey = process.env.RESEND_API_KEY;
     const fromEmail = process.env.NOTIFICATION_EMAIL_FROM ?? 'Clarity by Tanosec <clarity@tanosec.co.za>';
-
     if (!apiKey) {
       console.warn('[Clarity] RESEND_API_KEY not set — skipping user email report');
       return { success: true };
@@ -129,7 +131,6 @@ export async function emailReport(
             <span style="color:#fca5a5;font-size:14px;line-height:1.5;">${r}</span>
           </div>`).join('')
       : '<p style="color:#888;font-size:14px;">No significant risks identified.</p>';
-
     // Build strengths list
     const strengthsList = payload.strengths.length > 0
       ? payload.strengths.map(s => `

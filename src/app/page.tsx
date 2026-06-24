@@ -36,7 +36,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
-import ShareMyScore from "@/components/share-my-score";
 import BenchmarkCard from "@/components/benchmark-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -141,7 +140,6 @@ export default function ClarityByTanosecPage() {
       }
     } catch {}
   }, []);
-
   // Save answers to sessionStorage whenever they change
   useEffect(() => {
     try {
@@ -150,7 +148,6 @@ export default function ClarityByTanosecPage() {
       }
     } catch {}
   }, [answers]);
-
   const router = useRouter();
 
   const { toast } = useToast();
@@ -224,7 +221,6 @@ export default function ClarityByTanosecPage() {
         .filter(([, s]) => s.count > 0)
         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
-
 
       // Fire email report automatically — do not await, errors are handled gracefully
       if (recommendations) {
@@ -463,6 +459,17 @@ export default function ClarityByTanosecPage() {
         .filter(([, s]) => s.count > 0)
         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+      const enrichedCategoryScores = Object.fromEntries(
+        Object.entries(categoryScores).map(([catId, s]) => [
+          catId,
+          {
+            name: questionCategories[catId]?.name ?? catId,
+            score: s.score,
+            maxScore: s.maxScore,
+            percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
+          },
+        ])
+      );
       saveLeadCapture({
         email,
         newsletterOptIn,
@@ -471,6 +478,9 @@ export default function ClarityByTanosecPage() {
         sector: sector || undefined,
         companySize: companySize || undefined,
         worstCategory: worstCategoryName || undefined,
+        categoryScores: enrichedCategoryScores,
+        risks: recommendations.risks,
+        recommendations: recommendations.recommendations,
       }).catch((err) => console.error("[leadCapture] Failed silently:", err));
     }
   }, [recommendations, email, newsletterOptIn, score, maxScore, categoryScores, sector, companySize]);
@@ -500,13 +510,13 @@ export default function ClarityByTanosecPage() {
                     <SelectValue placeholder="Select your industry" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Legal & Compliance">Legal &amp; Compliance</SelectItem>
-                    <SelectItem value="Healthcare & Medical">Healthcare &amp; Medical</SelectItem>
-                    <SelectItem value="Finance & Accounting">Finance &amp; Accounting</SelectItem>
-                    <SelectItem value="Retail & E-commerce">Retail &amp; E-commerce</SelectItem>
-                    <SelectItem value="Construction & Engineering">Construction &amp; Engineering</SelectItem>
+                    <SelectItem value="Legal & Compliance">Legal & Compliance</SelectItem>
+                    <SelectItem value="Healthcare & Medical">Healthcare & Medical</SelectItem>
+                    <SelectItem value="Finance & Accounting">Finance & Accounting</SelectItem>
+                    <SelectItem value="Retail & E-commerce">Retail & E-commerce</SelectItem>
+                    <SelectItem value="Construction & Engineering">Construction & Engineering</SelectItem>
                     <SelectItem value="Professional Services">Professional Services</SelectItem>
-                    <SelectItem value="Hospitality & Tourism">Hospitality &amp; Tourism</SelectItem>
+                    <SelectItem value="Hospitality & Tourism">Hospitality & Tourism</SelectItem>
                     <SelectItem value="Education">Education</SelectItem>
                     <SelectItem value="Technology">Technology</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
@@ -538,7 +548,7 @@ export default function ClarityByTanosecPage() {
             </Button>
           </CardContent>
           <CardFooter className="text-xs text-muted-foreground justify-center">
-            <p>Takes approximately 2 minutes to complete. Industry &amp; size fields are optional.</p>
+            <p>Takes approximately 2 minutes to complete. Industry & size fields are optional.</p>
           </CardFooter>
         </Card>
       );
@@ -555,14 +565,14 @@ export default function ClarityByTanosecPage() {
             {/* Shield container with progressive fill */}
             <svg
               viewBox="0 0 100 120"
-              className="w-full h-full drop-shadow-[0_0_20px_rgba(34,197,94,0.3)]"
-              style={{ filter: 'drop-shadow(0 0 12px rgba(34,197,94,0.4))' }}
+              className="w-full h-full drop-shadow-[0_0_20px_rgba(190,240,81,0.3)]"
+              style={{ filter: 'drop-shadow(0 0 12px rgba(190,240,81,0.4))' }}
             >
               {/* Shield outline */}
               <path
                 d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
                 fill="none"
-                stroke="rgba(34,197,94,0.3)"
+                stroke="rgba(190,240,81,0.3)"
                 strokeWidth="2"
                 className="animate-pulse"
               />
@@ -573,13 +583,13 @@ export default function ClarityByTanosecPage() {
                   <path d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z" />
                 </clipPath>
                 <linearGradient id="shieldFill" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="rgba(34,197,94,0.8)" />
-                  <stop offset="100%" stopColor="rgba(34,197,94,0.2)" />
+                  <stop offset="0%" stopColor="rgba(190,240,81,0.8)" />
+                  <stop offset="100%" stopColor="rgba(190,240,81,0.2)" />
                 </linearGradient>
                 <linearGradient id="scanLine" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(34,197,94,0)" />
-                  <stop offset="50%" stopColor="rgba(34,197,94,1)" />
-                  <stop offset="100%" stopColor="rgba(34,197,94,0)" />
+                  <stop offset="0%" stopColor="rgba(190,240,81,0)" />
+                  <stop offset="50%" stopColor="rgba(190,240,81,1)" />
+                  <stop offset="100%" stopColor="rgba(190,240,81,0)" />
                 </linearGradient>
               </defs>
               
@@ -588,7 +598,7 @@ export default function ClarityByTanosecPage() {
                 {/* Base shield fill */}
                 <path
                   d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
-                  fill="rgba(34,197,94,0.1)"
+                  fill="rgba(190,240,81,0.1)"
                 />
                 
                 {/* Progressive fill bar */}
@@ -612,9 +622,9 @@ export default function ClarityByTanosecPage() {
                 />
                 
                 {/* Data stream dots */}
-                <circle cx="30" cy="50" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-1" />
-                <circle cx="50" cy="70" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-2" />
-                <circle cx="70" cy="40" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-3" />
+                <circle cx="30" cy="50" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-1" />
+                <circle cx="50" cy="70" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-2" />
+                <circle cx="70" cy="40" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-3" />
               </g>
               
               {/* Shield icon overlay */}
@@ -622,14 +632,14 @@ export default function ClarityByTanosecPage() {
                 <path
                   d="M0 -18 L12 -10 L12 2 C12 14 6 22 0 26 C-6 22 -12 14 -12 2 L-12 -10 Z"
                   fill="none"
-                  stroke="rgba(34,197,94,0.8)"
+                  stroke="rgba(190,240,81,0.8)"
                   strokeWidth="2"
                   className="animate-pulse"
                 />
                 <path
                   d="M0 -10 L0 16 M-8 4 L0 12 L8 4"
                   fill="none"
-                  stroke="rgba(34,197,94,0.8)"
+                  stroke="rgba(190,240,81,0.8)"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -646,7 +656,7 @@ export default function ClarityByTanosecPage() {
                 key={index}
                 className={`h-2 w-2 rounded-full transition-all duration-500 ${
                   index === loadingMsgIndex
-                    ? 'bg-primary w-6 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
+                    ? 'bg-primary w-6 shadow-[0_0_10px_rgba(190,240,81,0.6)]'
                     : index < loadingMsgIndex
                     ? 'bg-primary/50'
                     : 'bg-primary/20'
@@ -732,7 +742,6 @@ export default function ClarityByTanosecPage() {
       const question = questions[currentQuestionIndex];
       const category = questionCategories[question.category];
       const CategoryIcon = categoryIcons[question.category] || Shield;
-
       const currentOptions = (() => {
         if (sector && question.industryOptions && question.industryOptions[sector]) {
           return question.industryOptions[sector];
@@ -830,7 +839,17 @@ export default function ClarityByTanosecPage() {
           .filter(([, s]) => s.count > 0)
           .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
         const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
-
+        const enrichedCategoryScores = Object.fromEntries(
+          Object.entries(categoryScores).map(([catId, s]) => [
+            catId,
+            {
+              name: questionCategories[catId]?.name ?? catId,
+              score: s.score,
+              maxScore: s.maxScore,
+              percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
+            },
+          ])
+        );
         saveLeadCapture({
           email,
           newsletterOptIn,
@@ -839,6 +858,9 @@ export default function ClarityByTanosecPage() {
           sector: sector || undefined,
           companySize: companySize || undefined,
           worstCategory: worstCategoryName || undefined,
+          categoryScores: enrichedCategoryScores,
+          risks: recommendations.risks,
+          recommendations: recommendations.recommendations,
         }).catch((err) => console.error('[leadCapture] Failed silently:', err));
 
         // Fire email report automatically — do not await, errors are handled gracefully
@@ -876,10 +898,10 @@ export default function ClarityByTanosecPage() {
           <div className="flex flex-col items-center text-center">
             <Logo size="small" />
             <h1 className="text-3xl font-headline font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-              Get Your Full Security Report
+              Your Security Preview
             </h1>
             <p className="text-base text-muted-foreground mt-3 max-w-md mx-auto leading-relaxed">
-              A Tanosec cybersecurity expert will review your results and send you a personalised follow-up within one business day.
+              Here's a preview of your results. Enter your email to unlock your full security report with actionable recommendations.
             </p>
           </div>
 
@@ -911,11 +933,14 @@ export default function ClarityByTanosecPage() {
               {/* Locked Teaser Section */}
               <div className="relative rounded-xl border border-border/40 bg-background/20 p-6 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-4">
-                  <div className="p-4 bg-primary/10 rounded-full border border-primary/25 mb-3 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                  <div className="p-4 bg-primary/10 rounded-full border border-primary/25 mb-3 shadow-[0_0_15px_rgba(190,240,81,0.2)]">
                     <Lock className="h-8 w-8 text-primary animate-pulse" />
                   </div>
                   <p className="font-headline font-bold text-xl text-foreground text-center">
-                    Get your full security report — enter your email below to send your results.
+                    Unlock your full security report
+                  </p>
+                  <p className="text-sm text-muted-foreground text-center mt-2">
+                    Enter your email to receive your complete analysis with AI-powered recommendations.
                   </p>
                 </div>
 
@@ -991,7 +1016,7 @@ export default function ClarityByTanosecPage() {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
+                  className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(190,240,81,0.2)]"
                 >
                   Send Me My Results
                 </Button>
@@ -1008,8 +1033,8 @@ export default function ClarityByTanosecPage() {
                   className="underline hover:text-foreground transition-colors"
                 >
                   Privacy Policy
-                </a>{" "}
-                (https://tanosec.co.za/privacy-policy-2/). POPIA compliant. No spam, ever.
+                </a>
+                . POPIA compliant. No spam, ever.
               </p>
               <p className="text-[10px] text-muted-foreground/80">
                 support@tanosec.co.za · +27 621 234 244
@@ -1043,7 +1068,6 @@ export default function ClarityByTanosecPage() {
         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
 
       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : null;
-
       return (
         <div className="w-full max-w-5xl space-y-8 animate-fade-in">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -1078,16 +1102,12 @@ export default function ClarityByTanosecPage() {
                 <p className="text-muted-foreground pt-2 print-text">
                   This score reflects your cybersecurity posture based on your answers.
                 </p>
-                {/* Share inside the score card */}
-                <div className="pt-2 no-print">
-                  <p className="text-sm text-muted-foreground mb-2">Share your Results.</p>
-                  <div className="flex flex-col items-center gap-3">
-                    <ShareMyScore scorePercent={Math.round(scorePercentage)} />
-                    <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="border-primary/50 hover:bg-primary/10 text-primary w-full justify-center flex gap-2">
-                      <Download className="h-4 w-4" />
-                      Download PDF Report
-                    </Button>
-                  </div>
+                {/* Download PDF only - share feature removed for security */}
+                <div className="pt-4 no-print">
+                  <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="border-primary/50 hover:bg-primary/10 text-primary w-full justify-center flex gap-2">
+                    <Download className="h-4 w-4" />
+                    Download PDF Report
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1249,7 +1269,7 @@ export default function ClarityByTanosecPage() {
             <CardContent className="relative z-10 flex flex-col items-center gap-6 pt-4">
               <div className="flex flex-col sm:flex-row justify-center gap-4 w-full">
                 <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow">
+                  <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(190,240,81,0.3)] hover:shadow-[0_0_30px_rgba(190,240,81,0.5)] transition-shadow">
                     Book a Free Consultation
                   </Button>
                 </a>
@@ -1274,7 +1294,7 @@ export default function ClarityByTanosecPage() {
   };
 
   return (
-    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body bg-dot-pattern">
+    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body bg-dot-pattern bg-subtle-animation bg-particles">
       {renderContent()}
     </div>
   );

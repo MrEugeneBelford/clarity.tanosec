@@ -43,7 +43,6 @@ const FALLBACK: GenerateSecurityRecommendationsOutput = {
 };
 
 const systemPrompt = `IMPORTANT: Your response must be a raw JSON object only. No markdown. No code fences. No backticks. No text before or after the JSON. Start your response with { and end with }.
-
 You are a senior cybersecurity advisor specialising in South African SMEs. You work for Tanosec Cybersecurity (Bloemfontein). Tagline: "Think Like a Hacker, Secure Like a Pro."
 
 Your role is to analyse a business's cybersecurity self-assessment and deliver sharp, practical, SA-specific recommendations. You understand the local threat landscape: SIM swap fraud, SASSA and SAPO phishing campaigns, load shedding impacts on UPS and backup reliability, POPIA compliance obligations, and the budget constraints of Free State and broader SA SMEs.
@@ -63,7 +62,6 @@ You must respond with ONLY a valid JSON object in this exact structure:
     }
   ]
 }
-
 Rules:
 - risks: 3-5 items. Specific to their actual weak answers.
 - strengths: 2-4 genuine acknowledgments of what they are doing well.
@@ -100,15 +98,16 @@ ${Object.entries(input.assessmentResponses)
   .map(([q, a]) => `Q: ${q}\nA: ${a}`)
   .join('\n\n')}
 
-Analyse these and return your JSON assessment. Tailor risks and recommendations 
-to this specific industry where relevant.`;
+Analyse these and return your JSON assessment. Tailor risks and recommendations to
+this specific industry where relevant.`;
 
   try {
     const { content, success, error } = await callGemini(systemPrompt, userPrompt);
     
     if (!success) {
       console.error('[Clarity] AI call failed:', error);
-      return FALLBACK;
+      // Add toast description with the actual error
+      throw new Error('AI_ERROR: ' + error); // Let the caller handle it
     }
 
     console.log('[Clarity] Raw Gemini response (first 500 chars):', content.substring(0, 500));
@@ -118,7 +117,7 @@ to this specific industry where relevant.`;
 
     if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
       console.error('[Clarity] No JSON object found in Gemini response. Raw content:', content.substring(0, 300));
-      return FALLBACK;
+      throw new Error('AI_ERROR: No JSON object found in Gemini response');
     }
 
     const jsonString = content.slice(jsonStart, jsonEnd + 1);
@@ -131,10 +130,10 @@ to this specific industry where relevant.`;
     } catch (parseError) {
       console.error('[Clarity] Parse/validation failed:', parseError);
       console.error('[Clarity] Attempted to parse:', jsonString.substring(0, 300));
-      return FALLBACK;
+      throw new Error('AI_ERROR: Parse/validation failed');
     }
   } catch (err) {
     console.error('[Clarity] Unexpected error in flow:', err);
-    return FALLBACK;
+    throw err; // Re-throw to let caller handle it
   }
 }

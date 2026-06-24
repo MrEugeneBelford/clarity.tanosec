@@ -439,7 +439,7 @@ export default function ClarityByTanosecPage() {
           toast({
             variant: "destructive",
             title: "AI recommendations unavailable",
-            description: "Showing a fallback report so you can continue.",
+            description: error instanceof Error ? error.message : "Showing a fallback report so you can continue.",
           });
           setRecommendations(FALLBACK_RECOMMENDATIONS);
           setStep(totalQuestions + 2);

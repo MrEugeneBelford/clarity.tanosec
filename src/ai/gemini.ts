@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 export async function callGemini(systemPrompt: string, userPrompt: string): Promise<{ content: string; success: boolean; error?: string }> {
   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
-    return { content: '', success: false, error: 'GOOGLE_GENERATIVE_AI_API_KEY not set' };
+    return { content: '', success: false, error: 'GOOGLE_GENERATIVE_AI_API_KEY not set in environment' };
   }
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
@@ -15,6 +15,13 @@ export async function callGemini(systemPrompt: string, userPrompt: string): Prom
         generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' },
       });
       const result = await model.generateContent(userPrompt);
+      
+      // Check for safety filter blocks
+      const promptFeedback = result.response.promptFeedback;
+      if (promptFeedback?.blockReason) {
+        return { content: '', success: false, error: 'Content blocked by safety filter: ' + promptFeedback.blockReason };
+      }
+      
       return { content: result.response.text(), success: true };
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';

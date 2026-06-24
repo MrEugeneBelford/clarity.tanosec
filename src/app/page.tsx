@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Download,
   Shield,
   Lock,
   Database,
@@ -37,7 +36,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
 import ShareMyScore from "@/components/share-my-score";
-import BenchmarkCard from "@/components/benchmark-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -52,7 +50,6 @@ import { getRecommendations } from "@/lib/actions";
 import { saveLeadCapture, emailReport } from "@/lib/leadActions";
 import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
 import { cn } from "@/lib/utils";
-import { generatePDFReport, type PDFReportData } from "@/lib/pdfReport";
 import { useToast } from "@/hooks/use-toast";
 import { add } from "date-fns";
 
@@ -305,56 +302,6 @@ export default function ClarityByTanosecPage() {
     });
 };
 
-  const handleDownloadPDF = async () => {
-    if (!recommendations) return;
-
-    const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
-    const getScoreInterpretation = () => {
-      if (scorePercentage < 25) return "Critical Risk";
-      if (scorePercentage < 50) return "High Risk";
-      if (scorePercentage < 70) return "Moderate Risk";
-      if (scorePercentage < 85) return "Low Risk";
-      return "Strong Posture";
-    };
-
-    const enrichedCategoryScores = Object.fromEntries(
-      Object.entries(categoryScores).map(([catId, s]) => [
-        catId,
-        {
-          name: questionCategories[catId]?.name ?? catId,
-          score: s.score,
-          maxScore: s.maxScore,
-          percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
-        },
-      ])
-    );
-
-    const pdfData: PDFReportData = {
-      score: Math.round(scorePercentage),
-      scoreLabel: getScoreInterpretation(),
-      categoryScores: enrichedCategoryScores,
-      risks: recommendations.risks,
-      strengths: recommendations.strengths,
-      recommendations: recommendations.recommendations,
-      date: new Date(),
-    };
-
-    try {
-      await generatePDFReport(pdfData);
-      toast({
-        title: "PDF Downloaded!",
-        description: "Your security report has been saved.",
-      });
-    } catch (error) {
-      console.error("PDF generation failed:", error);
-      toast({
-        variant: "destructive",
-        title: "PDF Generation Failed",
-        description: "Unable to generate your PDF report. Please try again.",
-      });
-    }
-  };
-
 
   const { score, maxScore, categoryScores } = useMemo(() => {
     let score = 0;
@@ -547,115 +494,10 @@ export default function ClarityByTanosecPage() {
     if (isLoading) {
       return (
         <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-fade-in">
-          {/* Enhanced cybersecurity-themed loading animation */}
-          <div className="relative flex items-center justify-center h-32 w-32">
-            {/* Outer glow ring */}
-            <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse" />
-            
-            {/* Shield container with progressive fill */}
-            <svg
-              viewBox="0 0 100 120"
-              className="w-full h-full drop-shadow-[0_0_20px_rgba(34,197,94,0.3)]"
-              style={{ filter: 'drop-shadow(0 0 12px rgba(34,197,94,0.4))' }}
-            >
-              {/* Shield outline */}
-              <path
-                d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
-                fill="none"
-                stroke="rgba(34,197,94,0.3)"
-                strokeWidth="2"
-                className="animate-pulse"
-              />
-              
-              {/* Progressive fill mask */}
-              <defs>
-                <clipPath id="shieldClip">
-                  <path d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z" />
-                </clipPath>
-                <linearGradient id="shieldFill" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="rgba(34,197,94,0.8)" />
-                  <stop offset="100%" stopColor="rgba(34,197,94,0.2)" />
-                </linearGradient>
-                <linearGradient id="scanLine" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="rgba(34,197,94,0)" />
-                  <stop offset="50%" stopColor="rgba(34,197,94,1)" />
-                  <stop offset="100%" stopColor="rgba(34,197,94,0)" />
-                </linearGradient>
-              </defs>
-              
-              {/* Filled shield background */}
-              <g clipPath="url(#shieldClip)">
-                {/* Base shield fill */}
-                <path
-                  d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
-                  fill="rgba(34,197,94,0.1)"
-                />
-                
-                {/* Progressive fill bar */}
-                <rect
-                  x="10"
-                  y="115"
-                  width="80"
-                  height="0"
-                  fill="url(#shieldFill)"
-                  className="animate-shield-fill"
-                />
-                
-                {/* Scanning line */}
-                <rect
-                  x="10"
-                  y="0"
-                  width="80"
-                  height="4"
-                  fill="url(#scanLine)"
-                  className="animate-scan"
-                />
-                
-                {/* Data stream dots */}
-                <circle cx="30" cy="50" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-1" />
-                <circle cx="50" cy="70" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-2" />
-                <circle cx="70" cy="40" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-3" />
-              </g>
-              
-              {/* Shield icon overlay */}
-              <g transform="translate(50, 58)">
-                <path
-                  d="M0 -18 L12 -10 L12 2 C12 14 6 22 0 26 C-6 22 -12 14 -12 2 L-12 -10 Z"
-                  fill="none"
-                  stroke="rgba(34,197,94,0.8)"
-                  strokeWidth="2"
-                  className="animate-pulse"
-                />
-                <path
-                  d="M0 -10 L0 16 M-8 4 L0 12 L8 4"
-                  fill="none"
-                  stroke="rgba(34,197,94,0.8)"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="animate-pulse"
-                />
-              </g>
-            </svg>
+          <div className="relative flex items-center justify-center h-24 w-24">
+            <div className="absolute inset-0 border-t-2 border-primary rounded-full animate-spin"></div>
+            <Shield className="h-10 w-10 text-primary animate-pulse" />
           </div>
-          
-          {/* Step indicators */}
-          <div className="flex items-center gap-3">
-            {loadingMessages.map((_, index) => (
-              <div
-                key={index}
-                className={`h-2 w-2 rounded-full transition-all duration-500 ${
-                  index === loadingMsgIndex
-                    ? 'bg-primary w-6 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
-                    : index < loadingMsgIndex
-                    ? 'bg-primary/50'
-                    : 'bg-primary/20'
-                }`}
-              />
-            ))}
-          </div>
-          
-          {/* Rotating text message */}
           <h2 className="text-2xl font-headline transition-opacity duration-500 ease-in-out text-foreground">
             {loadingMessages[loadingMsgIndex]}
           </h2>
@@ -893,7 +735,7 @@ export default function ClarityByTanosecPage() {
                   {scorePercentage.toFixed(0)}%
                 </p>
               </div>
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex justify-center">
                 <Badge variant="outline" className={cn("text-lg px-4 py-1", interpretation.color, interpretation.border)}>
                   {interpretation.text}
                 </Badge>
@@ -1057,12 +899,7 @@ export default function ClarityByTanosecPage() {
           </div>
 
           <div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
-            {/* Benchmark Comparison Card */}
-            <div className="lg:col-span-3">
-              <BenchmarkCard userScore={scorePercentage} sector={sector} />
-            </div>
-
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
             <Card className="lg:col-span-1 print-card border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
               <CardHeader className="print-card-header pb-2">
                 <CardTitle className="text-2xl print-card-title text-center">Overall Security Score</CardTitle>
@@ -1081,12 +918,8 @@ export default function ClarityByTanosecPage() {
                 {/* Share inside the score card */}
                 <div className="pt-2 no-print">
                   <p className="text-sm text-muted-foreground mb-2">Share your Results.</p>
-                  <div className="flex flex-col items-center gap-3">
+                  <div className="flex justify-center">
                     <ShareMyScore scorePercent={Math.round(scorePercentage)} />
-                    <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="border-primary/50 hover:bg-primary/10 text-primary w-full justify-center flex gap-2">
-                      <Download className="h-4 w-4" />
-                      Download PDF Report
-                    </Button>
                   </div>
                 </div>
               </CardContent>

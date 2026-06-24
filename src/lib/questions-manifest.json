@@ -16,8 +16,7 @@
         "text": "No, or I don't know",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q2",
@@ -36,8 +35,7 @@
         "text": "No, our Wi-Fi is open or uses a weak/default password",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q3",
@@ -56,8 +54,7 @@
         "text": "We don't allow guest devices",
         "score": 10
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q4",
@@ -76,8 +73,7 @@
         "text": "No, we do not use MFA",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q5",
@@ -96,8 +92,7 @@
         "text": "This process is not formally managed",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q6",
@@ -116,8 +111,7 @@
         "text": "No formal password policy exists",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q7",
@@ -193,90 +187,6 @@
           "text": "No reliable backup in place",
           "score": 0
         }
-      ],
-      "Construction & Engineering": [
-        {
-          "text": "Yes, project files, CAD drawings, and architectural plans backed up daily",
-          "score": 10
-        },
-        {
-          "text": "Backups run but project files and drawings are not specifically included",
-          "score": 4
-        },
-        {
-          "text": "No reliable backup for project data",
-          "score": 0
-        }
-      ],
-      "Professional Services": [
-        {
-          "text": "Yes, client project data and deliverables backed up daily with offsite copy",
-          "score": 10
-        },
-        {
-          "text": "Backups run but client project data is not specifically included",
-          "score": 4
-        },
-        {
-          "text": "No reliable backup for client data",
-          "score": 0
-        }
-      ],
-      "Hospitality & Tourism": [
-        {
-          "text": "Yes, guest records, booking data, and billing backed up daily",
-          "score": 10
-        },
-        {
-          "text": "Backups run but guest records and bookings are not specifically covered",
-          "score": 4
-        },
-        {
-          "text": "No reliable backup for guest data",
-          "score": 0
-        }
-      ],
-      "Education": [
-        {
-          "text": "Yes, student records and academic data backed up daily, tested quarterly",
-          "score": 10
-        },
-        {
-          "text": "Backups run but student records are not specifically verified",
-          "score": 4
-        },
-        {
-          "text": "No reliable backup for student data",
-          "score": 0
-        }
-      ],
-      "Technology": [
-        {
-          "text": "Yes, code repositories, deployment configurations, and customer data backed up daily",
-          "score": 10
-        },
-        {
-          "text": "Backups run but code and configs are not specifically covered",
-          "score": 4
-        },
-        {
-          "text": "No reliable backup for code or system data",
-          "score": 0
-        }
-      ],
-      "Other": [
-        {
-          "text": "Yes, critical business data backed up daily and tested quarterly",
-          "score": 10
-        },
-        {
-          "text": "Backups run but not verified or tested regularly",
-          "score": 4
-        },
-        {
-          "text": "No reliable backup in place",
-          "score": 0
-        }
       ]
     }
   },
@@ -297,8 +207,7 @@
         "text": "No, we do not use encryption",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q15",
@@ -317,8 +226,7 @@
         "text": "No, we do not have a formal policy",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q9",
@@ -337,8 +245,7 @@
         "text": "No, or protection is expired/out-of-date",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q10",
@@ -357,8 +264,7 @@
         "text": "Updates are rarely or never installed",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q16",
@@ -377,8 +283,7 @@
         "text": "No, we have no remote capabilities",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q11",
@@ -440,104 +345,6 @@
           "text": "No formal security training",
           "score": 0
         }
-      ],
-      "Construction & Engineering": [
-        {
-          "text": "Yes, including site-specific risks, equipment data, and supplier security",
-          "score": 10
-        },
-        {
-          "text": "Basic security awareness only, no site-specific training",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
-      ],
-      "Professional Services": [
-        {
-          "text": "Yes, including client confidentiality, NDA obligations, and project data handling",
-          "score": 10
-        },
-        {
-          "text": "Basic security awareness only, no client-data scenarios",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
-      ],
-      "Hospitality & Tourism": [
-        {
-          "text": "Yes, including guest data handling, POPIA for guest records, and card fraud awareness",
-          "score": 10
-        },
-        {
-          "text": "Basic awareness only, no hospitality-specific scenarios",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
-      ],
-      "Education": [
-        {
-          "text": "Yes, including FERPA-equivalent SA student data, POPIA, and online safety",
-          "score": 10
-        },
-        {
-          "text": "Basic awareness only, no student-data scenarios",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
-      ],
-      "Technology": [
-        {
-          "text": "Yes, including API security, supply chain risks, and secure development practices",
-          "score": 10
-        },
-        {
-          "text": "Basic awareness only, no developer-specific security training",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
-      ],
-      "Other": [
-        {
-          "text": "Yes, all staff completed training in the last 12 months",
-          "score": 10
-        },
-        {
-          "text": "Training was provided but not consistently to all staff",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
-      ],
-      "Retail & E-commerce": [
-        {
-          "text": "Yes, transaction and customer data covered in regular training",
-          "score": 10
-        },
-        {
-          "text": "Basic awareness only, no retail-specific scenarios",
-          "score": 5
-        },
-        {
-          "text": "No formal security training",
-          "score": 0
-        }
       ]
     }
   },
@@ -558,8 +365,7 @@
         "text": "No, we have never tested staff awareness",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q17",
@@ -578,8 +384,7 @@
         "text": "No, reporting is not actively encouraged",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q13",
@@ -598,8 +403,7 @@
         "text": "No, we don't have a plan",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q18",
@@ -618,8 +422,7 @@
         "text": "No, we do not monitor our systems",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q14",
@@ -638,8 +441,7 @@
         "text": "No, we do not have cyber insurance",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q19",
@@ -658,8 +460,7 @@
         "text": "No, we are not aware of our obligations",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q20",
@@ -678,8 +479,7 @@
         "text": "No, we have not performed a risk assessment",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q21",
@@ -741,104 +541,6 @@
           "text": "No formal POPIA compliance in place",
           "score": 0
         }
-      ],
-      "Construction & Engineering": [
-        {
-          "text": "Yes, Information Officer appointed and supplier/subcontractor data handling documented",
-          "score": 10
-        },
-        {
-          "text": "Informal compliance only, supplier data not formally addressed",
-          "score": 4
-        },
-        {
-          "text": "No formal Information Officer or data policy in place",
-          "score": 0
-        }
-      ],
-      "Professional Services": [
-        {
-          "text": "Yes, Information Officer appointed and client project data policies documented",
-          "score": 10
-        },
-        {
-          "text": "Some compliance but client data policies not formalised",
-          "score": 4
-        },
-        {
-          "text": "No formal POPIA compliance in place",
-          "score": 0
-        }
-      ],
-      "Hospitality & Tourism": [
-        {
-          "text": "Yes, Information Officer appointed and guest consent and billing data processes documented",
-          "score": 10
-        },
-        {
-          "text": "Informal compliance only, guest data handling not formally documented",
-          "score": 4
-        },
-        {
-          "text": "No formal POPIA compliance for guest data",
-          "score": 0
-        }
-      ],
-      "Education": [
-        {
-          "text": "Yes, Information Officer appointed and student data access and consent processes documented",
-          "score": 10
-        },
-        {
-          "text": "Informal compliance only, student data access not formally documented",
-          "score": 4
-        },
-        {
-          "text": "No formal POPIA compliance for student data",
-          "score": 0
-        }
-      ],
-      "Technology": [
-        {
-          "text": "Yes, Information Officer appointed and code, IP, and customer data policies documented",
-          "score": 10
-        },
-        {
-          "text": "Some compliance but code and IP data policies not formalised",
-          "score": 4
-        },
-        {
-          "text": "No formal POPIA compliance in place",
-          "score": 0
-        }
-      ],
-      "Other": [
-        {
-          "text": "Yes, we have a designated Information Officer responsible for data protection",
-          "score": 10
-        },
-        {
-          "text": "Someone handles data protection informally but it's not formalised",
-          "score": 4
-        },
-        {
-          "text": "No Information Officer appointed",
-          "score": 0
-        }
-      ],
-      "Retail & E-commerce": [
-        {
-          "text": "Yes, Information Officer appointed and customer purchase data policies documented",
-          "score": 10
-        },
-        {
-          "text": "Some compliance but customer data policies not formalised",
-          "score": 4
-        },
-        {
-          "text": "No formal POPIA compliance in place",
-          "score": 0
-        }
       ]
     }
   },
@@ -856,11 +558,10 @@
         "score": 5
       },
       {
-        "text": "No UPS \u2014 systems lose power abruptly during outages",
+        "text": "No UPS — systems lose power abruptly during outages",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q23",
@@ -879,8 +580,7 @@
         "text": "No, our staff have not been trained on these scenarios",
         "score": 0
       }
-    ],
-    "industryOptions": {}
+    ]
   },
   {
     "id": "q24",
@@ -942,104 +642,6 @@
           "text": "No vendor access controls in place",
           "score": 0
         }
-      ],
-      "Construction & Engineering": [
-        {
-          "text": "Yes, contractors and suppliers have limited, documented access and sign NDAs",
-          "score": 10
-        },
-        {
-          "text": "Contractor access exists but not formally controlled or limited",
-          "score": 3
-        },
-        {
-          "text": "Vendor and contractor access is not tracked or controlled",
-          "score": 0
-        }
-      ],
-      "Professional Services": [
-        {
-          "text": "Yes, vendors and contractors sign NDAs and access is client-project-specific and time-limited",
-          "score": 10
-        },
-        {
-          "text": "Vendor access exists but client data access not formally restricted",
-          "score": 3
-        },
-        {
-          "text": "Vendor access is not tracked or controlled",
-          "score": 0
-        }
-      ],
-      "Hospitality & Tourism": [
-        {
-          "text": "Yes, third-party booking platforms and service vendors have limited, documented access",
-          "score": 10
-        },
-        {
-          "text": "Vendor access exists but guest data access not formally controlled",
-          "score": 3
-        },
-        {
-          "text": "Vendor access is not tracked or controlled",
-          "score": 0
-        }
-      ],
-      "Education": [
-        {
-          "text": "Yes, vendor access to student data is documented, limited, and subject to SA data law",
-          "score": 10
-        },
-        {
-          "text": "Vendor access exists but student data access not formally restricted",
-          "score": 3
-        },
-        {
-          "text": "Vendor access is not tracked or controlled",
-          "score": 0
-        }
-      ],
-      "Technology": [
-        {
-          "text": "Yes, third-party library and API access is managed, signed, and audited for supply chain risks",
-          "score": 10
-        },
-        {
-          "text": "Vendor access exists but supply chain and code access not formally managed",
-          "score": 3
-        },
-        {
-          "text": "Vendor access is not tracked or controlled",
-          "score": 0
-        }
-      ],
-      "Other": [
-        {
-          "text": "Yes, vendor access is documented, time-limited, and audited",
-          "score": 10
-        },
-        {
-          "text": "Vendors have access but it's not formally managed",
-          "score": 3
-        },
-        {
-          "text": "We don't track or control third-party system access",
-          "score": 0
-        }
-      ],
-      "Retail & E-commerce": [
-        {
-          "text": "Yes, POS and e-commerce vendor access is documented, limited, and audited",
-          "score": 10
-        },
-        {
-          "text": "Vendor access exists but customer transaction data not specifically restricted",
-          "score": 3
-        },
-        {
-          "text": "Vendor access is not tracked or controlled",
-          "score": 0
-        }
       ]
     }
   },
@@ -1087,118 +689,6 @@
         },
         {
           "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Finance & Accounting": [
-        {
-          "text": "Yes, MFA enabled, activity reviewed, and client financial data access-controlled",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but financial data access not specifically controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Retail & E-commerce": [
-        {
-          "text": "Yes, MFA enabled, transaction and customer data access-controlled",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but customer data access not specifically controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Construction & Engineering": [
-        {
-          "text": "Yes, MFA enabled, project files and CAD drawings access-controlled in cloud storage",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but project file access not specifically controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Professional Services": [
-        {
-          "text": "Yes, MFA enabled, activity reviewed, and client project data access-controlled",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but client project data access not specifically controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Hospitality & Tourism": [
-        {
-          "text": "Yes, MFA enabled, guest booking and billing data access-controlled",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but guest data access not specifically controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Education": [
-        {
-          "text": "Yes, MFA enabled, student records and academic data access-controlled",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but student data access not specifically controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Technology": [
-        {
-          "text": "Yes, MFA enabled, code repositories and deployment configs access-controlled",
-          "score": 10
-        },
-        {
-          "text": "MFA enabled but code and system configs not specifically access-controlled",
-          "score": 5
-        },
-        {
-          "text": "No specific cloud account security",
-          "score": 0
-        }
-      ],
-      "Other": [
-        {
-          "text": "Yes, MFA enabled and we review access/activity logs",
-          "score": 10
-        },
-        {
-          "text": "MFA is enabled but we don't review activity logs",
-          "score": 6
-        },
-        {
-          "text": "No, these accounts are not specifically secured or monitored",
           "score": 0
         }
       ]
@@ -1280,132 +770,6 @@
           "text": "I am not sure whether staff use AI tools",
           "score": 0
         }
-      ],
-      "Construction & Engineering": [
-        {
-          "text": "Yes, we have an AI policy covering project data, CAD files, and IP considerations",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools but no policy covers project data or IP",
-          "score": 2
-        },
-        {
-          "text": "We do not use AI tools",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff use AI tools",
-          "score": 0
-        }
-      ],
-      "Professional Services": [
-        {
-          "text": "Yes, we have an AI policy covering client project data and NDA obligations",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools but no policy covers client project data",
-          "score": 2
-        },
-        {
-          "text": "We do not use AI tools",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff use AI tools",
-          "score": 0
-        }
-      ],
-      "Hospitality & Tourism": [
-        {
-          "text": "Yes, we have an AI policy covering guest data and POPIA compliance",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools but no policy covers guest data",
-          "score": 2
-        },
-        {
-          "text": "We do not use AI tools",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff use AI tools",
-          "score": 0
-        }
-      ],
-      "Education": [
-        {
-          "text": "Yes, we have an AI policy covering student data and FERPA-equivalent SA student privacy requirements",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools but no policy covers student data",
-          "score": 2
-        },
-        {
-          "text": "We do not use AI tools",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff use AI tools",
-          "score": 0
-        }
-      ],
-      "Technology": [
-        {
-          "text": "Yes, we have an AI policy covering source code, IP, and customer data confidentiality",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools but no policy covers code or IP",
-          "score": 2
-        },
-        {
-          "text": "We do not use AI tools",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff use AI tools",
-          "score": 0
-        }
-      ],
-      "Other": [
-        {
-          "text": "Yes, we use AI tools and have a clear written policy on data sharing",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools informally but there is no formal policy",
-          "score": 3
-        },
-        {
-          "text": "We do not use AI tools in our business",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff are using AI tools",
-          "score": 0
-        }
-      ],
-      "Retail & E-commerce": [
-        {
-          "text": "Yes, we have an AI policy covering customer purchase data and marketing use",
-          "score": 10
-        },
-        {
-          "text": "Staff use AI tools but no policy covers customer transaction data",
-          "score": 2
-        },
-        {
-          "text": "We do not use AI tools",
-          "score": 7
-        },
-        {
-          "text": "I am not sure whether staff use AI tools",
-          "score": 0
-        }
       ]
     }
   },
@@ -1430,7 +794,6 @@
         "text": "We do not use AI tools",
         "score": 8
       }
-    ],
-    "industryOptions": {}
+    ]
   }
 ]

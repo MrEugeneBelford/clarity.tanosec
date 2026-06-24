@@ -6,6 +6,10 @@
   NODE_VERSION = "20"
   NPM_VERSION = "10"
 
+## Note: Do NOT add a SPA catch-all redirect for Next.js
+## Next on Netlify handles routing internally. A catch-all redirect to index.html would
+## cause images and other assets to serve HTML, leading to "not a valid image" errors.
+
 # Handle Next.js static assets
 [[headers]]
   for = "/_next/static/*"
@@ -18,19 +22,30 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
+# Cache the app icon as well
 [[headers]]
   for = "/icon.png"
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# Global security headers — single block, no conflicts
+# Global security headers (non-invasive)
 [[headers]]
   for = "/*"
   [headers.values]
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
     X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Resource-Policy = "same-origin"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
     X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.netlify.app; connect-src 'self' https://api.resend.com https://gate.whapi.cloud https://generativelanguage.googleapis.com https://calendly.com https://*.netlify.app; frame-ancestors 'none'; font-src 'self' data:; object-src 'none';"
-
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://calendly.com; frame-ancestors 'none';"

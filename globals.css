@@ -1,0 +1,279 @@
+/* Print page setup */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Premium Dark Theme with brand color #bef051 */
+    --background: 240 5.9% 4.1%; /* zinc-950 #09090b */
+    --foreground: 0 0% 98%;
+    
+    --card: 240 5.9% 7%; /* slightly lighter zinc */
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 5.9% 7%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 82 84% 63%; /* brand lime green #bef051 */
+    --primary-foreground: 0 0% 0%; /* black text on primary for contrast */
+    
+    --secondary: 240 3.7% 15.9%; /* zinc-800 */
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%; /* zinc-400 */
+    
+    --accent: 82 84% 63%; /* brand lime green */
+    --accent-foreground: 0 0% 0%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 82 84% 63%;
+    
+    /* Charts */
+    --chart-1: 82 84% 63%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
+    --radius: 0.5rem;
+  }
+}
+
+@layer utilities {
+  .bg-dot-pattern {
+    background-image: radial-gradient(rgba(190, 240, 81, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Subtle animated background gradient */
+  .bg-subtle-animation {
+    background: 
+      radial-gradient(ellipse at 20% 80%, rgba(190, 240, 81, 0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(190, 240, 81, 0.02) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(190, 240, 81, 0.015) 0%, transparent 70%);
+    animation: subtle-gradient-shift 20s ease-in-out infinite;
+  }
+
+  /* Floating particles animation */
+  .bg-particles {
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(190, 240, 81, 0.04) 0%, transparent 2%),
+      radial-gradient(circle at 75% 75%, rgba(190, 240, 81, 0.03) 0%, transparent 1.5%),
+      radial-gradient(circle at 50% 10%, rgba(190, 240, 81, 0.035) 0%, transparent 1%),
+      radial-gradient(circle at 10% 60%, rgba(190, 240, 81, 0.025) 0%, transparent 1.2%),
+      radial-gradient(circle at 90% 40%, rgba(190, 240, 81, 0.03) 0%, transparent 1.8%);
+    background-size: 100% 100%;
+    animation: particles-drift 30s linear infinite;
+  }
+}
+
+@keyframes subtle-gradient-shift {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%, 50% 50%;
+  }
+  25% {
+    background-position: 100% 0%, 0% 100%, 75% 25%;
+  }
+  50% {
+    background-position: 50% 50%, 50% 50%, 50% 75%;
+  }
+  75% {
+    background-position: 100% 100%, 0% 0%, 25% 75%;
+  }
+}
+
+@keyframes particles-drift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 50%, 100% 50%;
+  }
+  100% {
+    background-position: 0% 100%, 100% 0%, 50% 100%, 0% 150%, 100% 150%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Removed legacy print styles and report-mode since Print is deprecated */
+
+/* PDF export mode: dark theme to match reference */
+.pdf-mode body { background: #0f0f10 !important; color: #f7f7f7 !important; }
+.pdf-mode #full-report { background: #0f0f10 !important; color: #f7f7f7 !important; }
+.pdf-mode #full-report * { box-shadow: none !important; }
+
+/* Cards and text */
+.pdf-mode .print-card { background: #171718 !important; border: 1px solid #2a2a2b !important; color: #e8e8e8 !important; }
+.pdf-mode .print-card-header,
+.pdf-mode .print-card-content,
+.pdf-mode .print-card-title,
+.pdf-mode .print-text,
+.pdf-mode .print-badge { color: #e8e8e8 !important; border-color: #2a2a2b !important; }
+
+/* Header/Footer */
+.pdf-mode .brand-header { background: #151516 !important; border-bottom: 1px solid #2a2a2b !important; color: #ffffff !important; }
+.pdf-mode .brand-footer { background: #151516 !important; border-top: 1px solid #2a2a2b !important; color: #cfcfcf !important; }
+
+/* Constrain logo within header for PDF/print */
+.brand-logo { display: flex; align-items: center; }
+.brand-logo svg,
+.brand-logo img { max-height: 16px; width: auto; display: block; }
+
+/* Slight breathing room at top in PDF mode */
+.pdf-mode #full-report { padding-top: 12mm; padding-bottom: 12mm; }
+
+/* Reduce risk of clipping across pages during export */
+.pdf-mode .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+.pdf-mode .brand-header, .pdf-mode .brand-footer { break-inside: avoid; page-break-inside: avoid; }
+
+/* Page break helpers */
+.page-break {
+  break-before: page;
+}
+.avoid-break {
+  break-inside: avoid;
+}
+
+/* Typography and spacing tightening for PDF */
+.pdf-mode #full-report { font-size: 0.95rem; line-height: 1.35; }
+.pdf-mode #full-report h1 { font-size: 1.25rem !important; line-height: 1.3 !important; margin: 0 0 8px 0 !important; }
+.pdf-mode #full-report h2 { font-size: 1.125rem !important; line-height: 1.3 !important; margin: 12px 0 8px 0 !important; }
+.pdf-mode #full-report h3 { font-size: 1rem !important; line-height: 1.3 !important; margin: 10px 0 6px 0 !important; }
+.pdf-mode #full-report p { margin: 4px 0 !important; }
+.pdf-mode #full-report ul { margin: 4px 0 !important; }
+.pdf-mode #full-report li { margin: 2px 0 !important; }
+
+/* Cards and recommendation blocks tighter padding and radius */
+.pdf-mode #full-report .rounded-lg { border-radius: 6px !important; }
+.pdf-mode #full-report .rounded-md { border-radius: 6px !important; }
+.pdf-mode #full-report .p-4 { padding: 12px !important; }
+.pdf-mode #full-report .p-3 { padding: 10px !important; }
+.pdf-mode #full-report .gap-6 { gap: 18px !important; }
+.pdf-mode #full-report .gap-5 { gap: 16px !important; }
+.pdf-mode #full-report .gap-4 { gap: 14px !important; }
+.pdf-mode #full-report .gap-3 { gap: 10px !important; }
+
+/* Keep pill (badge) labels vertically centered */
+.ts-badge { line-height: 1 !important; display: inline-flex; align-items: center; justify-content: center; }
+.pdf-mode .ts-badge { line-height: 1 !important; padding-top: 0 !important; padding-bottom: 0 !important; min-height: 22px !important; }
+
+/* Full Report: branding header/footer and print helpers */
+.brand-header {
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+  color: #000000;
+}
+.brand-footer {
+  padding: 8px 24px;
+  background: #ffffff;
+  border-top: 1px solid #e5e5e5;
+  font-size: 10px;
+  color: #000000;
+}
+/* Removed brand-footer fixed positioning for print */
+
+/* Footer safety overrides to prevent accidental fixed positioning overlapping content */
+@layer base {
+  footer.fixed { position: static !important; inset: auto !important; }
+}
+
+/* Cybersecurity-themed loading screen animations */
+@keyframes shield-fill {
+  0% {
+    transform: translateY(105px);
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-105px);
+    opacity: 0.3;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120px);
+    opacity: 0;
+  }
+}
+
+@keyframes data-stream-1 {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes data-stream-2 {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes data-stream-3 {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(12px);
+  }
+}
+
+.animate-shield-fill {
+  animation: shield-fill 2.2s ease-in-out infinite;
+}
+
+.animate-scan {
+  animation: scan 1.1s ease-in-out infinite;
+}
+
+.animate-data-stream-1 {
+  animation: data-stream-1 1.5s ease-in-out infinite;
+}
+
+.animate-data-stream-2 {
+  animation: data-stream-2 1.8s ease-in-out infinite 0.3s;
+}
+
+.animate-data-stream-3 {
+  animation: data-stream-3 1.3s ease-in-out infinite 0.6s;
+}

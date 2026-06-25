@@ -1,0 +1,4248 @@
+From 9afff0765b98208a45c01560b1ebdfecbe48d77f Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 14:33:28 +0000
+Subject: [PATCH 1/9] feat: wire emailReport() to send users their full results
+ via Resend
+
+---
+ src/app/page.tsx       |  94 +++++++++++++++--
+ src/lib/leadActions.ts | 235 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 316 insertions(+), 13 deletions(-)
+
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 64e799e..017493e 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { useState, useMemo, useEffect, useCallback } from "react";
++import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+ import { useRouter } from "next/navigation";
+ import {
+   Shield,
+@@ -47,7 +47,7 @@ import {
+ 
+ import { questions, questionCategories } from "@/lib/questions";
+ import { getRecommendations } from "@/lib/actions";
+-import { saveLeadCapture } from "@/lib/leadActions";
++import { saveLeadCapture, emailReport } from "@/lib/leadActions";
+ import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
+ import { cn } from "@/lib/utils";
+ import { useToast } from "@/hooks/use-toast";
+@@ -126,6 +126,7 @@ export default function ClarityByTanosecPage() {
+     useState<GenerateSecurityRecommendationsOutput | null>(null);
+   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+   const [isPreviewResults, setIsPreviewResults] = useState(false);
++  const notificationSentRef = useRef(false);
+ 
+   // Restore answers from sessionStorage on mount
+   useEffect(() => {
+@@ -221,15 +222,32 @@ export default function ClarityByTanosecPage() {
+         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+ 
+-      saveLeadCapture({
+-        email: email,
+-        newsletterOptIn,
+-        score: Math.round(scorePercentage),
+-        scoreLabel: getScoreInterpretation().text,
+-        sector: sector || undefined,
+-        companySize: companySize || undefined,
+-        worstCategory: worstCategoryName || undefined,
+-      }).catch((err) => console.error('[leadCapture] Failed silently:', err));
++
++      // Fire email report automatically — do not await, errors are handled gracefully
++      if (recommendations) {
++        const enrichedCategoryScores = Object.fromEntries(
++          Object.entries(categoryScores).map(([catId, s]) => [
++            catId,
++            {
++              name: questionCategories[catId]?.name ?? catId,
++              score: s.score,
++              maxScore: s.maxScore,
++              percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
++            },
++          ])
++        );
++        emailReport({
++          email,
++          score: Math.round(scorePercentage),
++          scoreLabel: getScoreInterpretation().text,
++          sector: sector || '',
++          companySize: companySize || '',
++          categoryScores: enrichedCategoryScores,
++          risks: recommendations.risks,
++          strengths: recommendations.strengths,
++          recommendations: recommendations.recommendations,
++        }).catch((err) => console.error('[emailReport] Failed silently:', err));
++      }
+ 
+       setStep(totalQuestions + 3); // Go straight to full results
+     } else {
+@@ -376,6 +394,34 @@ export default function ClarityByTanosecPage() {
+     }
+   }, [isLoading, answers, totalQuestions, toast, score, maxScore, categoryScores, sector, companySize]);
+ 
++  // Fire notification after recommendations are loaded
++  useEffect(() => {
++    if (recommendations && email && !notificationSentRef.current) {
++      notificationSentRef.current = true;
++      const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
++      const getScoreInterpretation = () => {
++        if (scorePercentage < 25) return { text: "Critical Risk" };
++        if (scorePercentage < 50) return { text: "High Risk" };
++        if (scorePercentage < 70) return { text: "Moderate Risk" };
++        if (scorePercentage < 85) return { text: "Low Risk" };
++        return { text: "Strong Posture" };
++      };
++      const worstCategory = Object.entries(categoryScores)
++        .filter(([, s]) => s.count > 0)
++        .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
++      const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
++      saveLeadCapture({
++        email,
++        newsletterOptIn,
++        score: Math.round(scorePercentage),
++        scoreLabel: getScoreInterpretation().text,
++        sector: sector || undefined,
++        companySize: companySize || undefined,
++        worstCategory: worstCategoryName || undefined,
++      }).catch((err) => console.error("[leadCapture] Failed silently:", err));
++    }
++  }, [recommendations, email, newsletterOptIn, score, maxScore, categoryScores, sector, companySize]);
++
+   const renderContent = () => {
+     if (isStart) {
+       return (
+@@ -637,6 +683,32 @@ export default function ClarityByTanosecPage() {
+           worstCategory: worstCategoryName || undefined,
+         }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+ 
++        // Fire email report automatically — do not await, errors are handled gracefully
++        if (recommendations) {
++          const enrichedCategoryScores = Object.fromEntries(
++            Object.entries(categoryScores).map(([catId, s]) => [
++              catId,
++              {
++                name: questionCategories[catId]?.name ?? catId,
++                score: s.score,
++                maxScore: s.maxScore,
++                percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
++              },
++            ])
++          );
++          emailReport({
++            email,
++            score: Math.round(scorePercentage),
++            scoreLabel: interpretation.text,
++            sector: sector || '',
++            companySize: companySize || '',
++            categoryScores: enrichedCategoryScores,
++            risks: recommendations.risks,
++            strengths: recommendations.strengths,
++            recommendations: recommendations.recommendations,
++          }).catch((err) => console.error('[emailReport] Failed silently:', err));
++        }
++
+         setIsPreviewResults(false);
+         setStep(totalQuestions + 3); // Go to results
+       };
+diff --git a/src/lib/leadActions.ts b/src/lib/leadActions.ts
+index 6a8e530..c5de629 100644
+--- a/src/lib/leadActions.ts
++++ b/src/lib/leadActions.ts
+@@ -38,25 +38,256 @@ export async function saveLeadCapture(data: {
+   }
+ }
+ 
++export interface CategoryScore {
++  name: string;
++  score: number;
++  maxScore: number;
++  percentage: number;
++}
++
+ export interface EmailReportPayload {
+   email: string;
+   score: number;
+   scoreLabel: string;
+   sector: string;
+   companySize: string;
++  categoryScores: Record<string, CategoryScore>;
+   risks: string[];
+   strengths: string[];
+   recommendations: { recommendation: string; priority: string }[];
+ }
+ 
++function buildScoreColor(score: number): string {
++  if (score >= 75) return '#22c55e';
++  if (score >= 50) return '#eab308';
++  if (score >= 25) return '#f97316';
++  return '#ef4444';
++}
++
++function buildPriorityBadge(priority: string): { label: string; bg: string; color: string; border: string } {
++  switch (priority) {
++    case 'high':
++      return { label: 'HIGH', bg: '#450a0a', color: '#ef4444', border: '#7f1d1d' };
++    case 'medium':
++      return { label: 'MEDIUM', bg: '#451a03', color: '#f97316', border: '#7c2d12' };
++    default:
++      return { label: 'LOW', bg: '#052e16', color: '#22c55e', border: '#14532d' };
++  }
++}
++
++function buildRiskBandLabel(score: number): string {
++  if (score >= 85) return 'Strong Posture';
++  if (score >= 70) return 'Low Risk';
++  if (score >= 50) return 'Moderate Risk';
++  if (score >= 25) return 'High Risk';
++  return 'Critical Risk';
++}
++
+ export async function emailReport(
+   payload: EmailReportPayload
+ ): Promise<{ success: boolean; error?: string }> {
+   try {
+-    console.log('[leadActions] emailReport requested for:', payload.email);
++    const apiKey = process.env.RESEND_API_KEY;
++    const fromEmail = process.env.NOTIFICATION_EMAIL_FROM ?? 'Clarity by Tanosec <clarity@tanosec.co.za>';
++
++    if (!apiKey) {
++      console.warn('[Clarity] RESEND_API_KEY not set — skipping user email report');
++      return { success: true };
++    }
++
++    const scoreColor = buildScoreColor(payload.score);
++    const scoreLabel = payload.scoreLabel || buildRiskBandLabel(payload.score);
++
++    // Build category breakdown rows
++    const categoryRows = Object.entries(payload.categoryScores)
++      .filter(([, s]) => s.maxScore > 0)
++      .map(([catId, s]) => {
++        const barColor = buildScoreColor(s.percentage);
++        const barWidth = Math.round(s.percentage);
++        return `
++          <tr>
++            <td style="padding:10px 0;border-bottom:1px solid #222;font-size:13px;color:#888;vertical-align:middle;">
++              ${s.name}
++            </td>
++            <td style="padding:10px 0;border-bottom:1px solid #222;vertical-align:middle;">
++              <div style="background:#222;border-radius:4px;height:8px;width:160px;overflow:hidden;">
++                <div style="background:${barColor};height:8px;width:${barWidth}%;border-radius:4px;"></div>
++              </div>
++            </td>
++            <td style="padding:10px 0 10px 16px;border-bottom:1px solid #222;font-size:14px;color:${barColor};font-weight:700;text-align:right;white-space:nowrap;">
++              ${s.score}/${s.maxScore}
++            </td>
++          </tr>`;
++      })
++      .join('');
++
++    // Build risks list
++    const risksList = payload.risks.length > 0
++      ? payload.risks.map(r => `
++          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#1c0a0a;border:1px solid #450a0a;border-radius:8px;margin-bottom:10px;">
++            <span style="color:#ef4444;font-size:16px;line-height:1;padding-top:2px;">⚠️</span>
++            <span style="color:#fca5a5;font-size:14px;line-height:1.5;">${r}</span>
++          </div>`).join('')
++      : '<p style="color:#888;font-size:14px;">No significant risks identified.</p>';
++
++    // Build strengths list
++    const strengthsList = payload.strengths.length > 0
++      ? payload.strengths.map(s => `
++          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#052e16;border:1px solid #14532d;border-radius:8px;margin-bottom:10px;">
++            <span style="color:#22c55e;font-size:16px;line-height:1;padding-top:2px;">🛡️</span>
++            <span style="color:#86efac;font-size:14px;line-height:1.5;">${s}</span>
++          </div>`).join('')
++      : '<p style="color:#888;font-size:14px;">Keep building your security posture.</p>';
++
++    // Build recommendations list
++    const recsList = payload.recommendations.map(rec => {
++      const badge = buildPriorityBadge(rec.priority);
++      return `
++        <div style="display:flex;align-items:flex-start;gap:14px;padding:16px;background:#111;border:1px solid #222;border-radius:10px;margin-bottom:12px;">
++          <div style="background:${badge.bg};border:1px solid ${badge.border};border-radius:6px;padding:4px 10px;white-space:nowrap;">
++            <span style="color:${badge.color};font-size:11px;font-weight:700;letter-spacing:0.05em;">${badge.label}</span>
++          </div>
++          <p style="color:#e5e5e5;font-size:14px;line-height:1.6;margin:0;">${rec.recommendation}</p>
++        </div>`;
++    }).join('');
++
++    const html = `<!DOCTYPE html>
++<html lang="en">
++<head>
++  <meta charset="UTF-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1.0">
++  <title>Your Clarity Security Report</title>
++</head>
++<body style="margin:0;padding:0;background:#0a0a0a;font-family:Arial,sans-serif;color:#e5e5e5;">
++  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
++    <tr>
++      <td>
++        <table width="640" align="center" cellpadding="0" cellspacing="0" style="background:#111;border-radius:16px;border:1px solid #222;max-width:640px;width:100%;">
++
++          <!-- Header -->
++          <tr>
++            <td style="padding:28px 36px 24px;border-bottom:1px solid #222;">
++              <p style="margin:0;font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.1em;">Clarity by Tanosec</p>
++              <h1 style="margin:6px 0 0;font-size:26px;color:#fff;font-weight:700;">Your Security Report</h1>
++              <p style="margin:6px 0 0;font-size:14px;color:#666;">Tailored cybersecurity insights for your business</p>
++            </td>
++          </tr>
++
++          <!-- Score Hero -->
++          <tr>
++            <td style="padding:32px 36px;">
++              <table width="100%" cellpadding="0" cellspacing="0" style="background:#161616;border-radius:12px;border:1px solid #222;">
++                <tr>
++                  <td style="padding:28px;text-align:center;">
++                    <p style="margin:0;font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.08em;">Overall Security Score</p>
++                    <p style="margin:10px 0 6px;font-size:72px;font-weight:800;color:${scoreColor};line-height:1;">${payload.score}%</p>
++                    <p style="margin:0;font-size:18px;font-weight:700;color:${scoreColor};">${scoreLabel}</p>
++                    ${payload.sector ? `<p style="margin:10px 0 0;font-size:13px;color:#666;">${payload.sector}${payload.companySize ? ` · ${payload.companySize}` : ''}</p>` : ''}
++                  </td>
++                </tr>
++              </table>
++            </td>
++          </tr>
++
++          <!-- Domain Breakdown -->
++          <tr>
++            <td style="padding:0 36px 8px;">
++              <h2 style="margin:0;font-size:15px;color:#888;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Domain Breakdown</h2>
++            </td>
++          </tr>
++          <tr>
++            <td style="padding:0 36px 24px;">
++              <table width="100%" cellpadding="0" cellspacing="0" style="background:#161616;border-radius:12px;border:1px solid #222;overflow:hidden;">
++                ${categoryRows}
++              </table>
++            </td>
++          </tr>
++
++          <!-- Risks & Strengths -->
++          <tr>
++            <td style="padding:0 36px 8px;">
++              <table width="100%" cellpadding="0" cellspacing="0">
++                <tr>
++                  <td style="width:50%;padding-right:10px;vertical-align:top;">
++                    <h2 style="margin:0 0 12px;font-size:15px;color:#ef4444;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">⚠️ AI-Identified Risks</h2>
++                    ${risksList}
++                  </td>
++                  <td style="width:50%;padding-left:10px;vertical-align:top;">
++                    <h2 style="margin:0 0 12px;font-size:15px;color:#22c55e;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">🛡️ Your Strengths</h2>
++                    ${strengthsList}
++                  </td>
++                </tr>
++              </table>
++            </td>
++          </tr>
++
++          <!-- Recommendations -->
++          <tr>
++            <td style="padding:0 36px 8px;">
++              <h2 style="margin:0;font-size:15px;color:#888;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">📋 Your Action Plan</h2>
++            </td>
++          </tr>
++          <tr>
++            <td style="padding:0 36px 28px;">
++              ${recsList}
++            </td>
++          </tr>
++
++          <!-- CTA -->
++          <tr>
++            <td style="padding:0 36px 28px;">
++              <table width="100%" cellpadding="0" cellspacing="0" style="background:#111;border-radius:12px;border:1px solid #1a3a1a;overflow:hidden;">
++                <tr>
++                  <td style="padding:28px 32px;text-align:center;background:linear-gradient(135deg,#0d2b0d 0%,#0a1f0a 100%);">
++                    <p style="margin:0 0 4px;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:0.08em;">Ready to take the next step?</p>
++                    <p style="margin:0 0 20px;font-size:17px;color:#ccc;line-height:1.5;">Book a free 30-minute consultation with a Tanosec cybersecurity expert and get a prioritised remediation roadmap.</p>
++                    <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#16a34a;color:#fff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:0.02em;">Book a Free Consultation →</a>
++                    <p style="margin:16px 0 0;font-size:12px;color:#555;">calendly.com/tanosec · No commitment required</p>
++                  </td>
++                </tr>
++              </table>
++            </td>
++          </tr>
++
++          <!-- Footer -->
++          <tr>
++            <td style="padding:24px 36px;border-top:1px solid #222;text-align:center;">
++              <p style="margin:0;font-size:12px;color:#444;">Clarity by Tanosec · <a href="https://tanosec.co.za" style="color:#555;text-decoration:none;">tanosec.co.za</a> · <a href="mailto:support@tanosec.co.za" style="color:#555;text-decoration:none;">support@tanosec.co.za</a></p>
++              <p style="margin:8px 0 0;font-size:11px;color:#333;">This report was generated based on your self-assessment. Results are indicative and should be validated by a qualified cybersecurity professional.</p>
++            </td>
++          </tr>
++
++        </table>
++      </td>
++    </tr>
++  </table>
++</body>
++</html>`;
++
++    const response = await fetch('https://api.resend.com/emails', {
++      method: 'POST',
++      headers: {
++        'Authorization': `Bearer ${apiKey}`,
++        'Content-Type': 'application/json',
++      },
++      body: JSON.stringify({
++        from: fromEmail,
++        to: [payload.email],
++        subject: `Your Clarity Security Report — ${payload.score}% (${scoreLabel})`,
++        html,
++      }),
++    });
++
++    if (!response.ok) {
++      const errText = await response.text();
++      console.error('[Clarity] emailReport Resend error:', errText);
++      return { success: false, error: 'Email send failed' };
++    }
++
++    console.log('[Clarity] emailReport sent to:', payload.email);
+     return { success: true };
+   } catch (error) {
+-    console.error('[leadActions] Unexpected error in emailReport:', error);
++    console.error('[Clarity] Unexpected error in emailReport:', error);
+     return {
+       success: false,
+       error: error instanceof Error ? error.message : 'Unknown error',
+-- 
+2.39.5
+
+
+From ebc831e46eb7481046fb35524635e8879c387f0b Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 14:39:28 +0000
+Subject: [PATCH 2/9] feat: sync docs, add industry variants for 6 missing
+ sectors
+
+---
+ AGENTS.md                       |  56 ++-
+ package-lock.json               |  11 -
+ src/lib/questions-manifest.json | 683 ++++++++++++++++++++++++++++++--
+ 3 files changed, 699 insertions(+), 51 deletions(-)
+
+diff --git a/AGENTS.md b/AGENTS.md
+index 2470c4b..c297072 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,10 +1,10 @@
+ # Clarity by Tanosec — Agent Context
+ 
+ ## What this project is
+-Clarity is an AI-powered cybersecurity self-assessment tool for South African SMEs, built by Tanosec Cybersecurity (Bloemfontein). It is the company's primary lead generation tool. Users complete a 25-question assessment and receive an AI-generated security posture report with risks, strengths, and recommendations.
++Clarity is an AI-powered cybersecurity self-assessment tool for South African SMEs, built by Tanosec Cybersecurity (Bloemfontein). It is the company's primary lead generation tool. Users complete a 27-question assessment and receive an AI-generated security posture report with risks, strengths, and recommendations.
+ 
+ **Live URL:** https://clarity.tanosec.co.za  
+-**Stack:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Groq API (llama-3.3-70b-versatile), deployed on Netlify  
++**Stack:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Gemini 2.5 Flash via Google Generative AI SDK, deployed on Netlify  
+ **Company tagline:** "Think Like a Hacker, Secure Like a Pro"
+ 
+ ---
+@@ -14,13 +14,22 @@ Clarity is an AI-powered cybersecurity self-assessment tool for South African SM
+ 1. **No PDF download.** There is no PDF export, no html2canvas, no jsPDF. The full-report route does not exist. If you see references to these, delete them.
+ 2. **No localStorage for report data.** Assessment results are never written to localStorage.
+ 3. **No debug API routes in production.** Routes like /api/debug-groq, /api/test-openrouter, /api/test-assessment must not exist.
+-4. **Email is optional, never blocking.** Users can always continue without providing an email.
++4. **Email is optional, never blocking.** Users can always continue without providing an email. See Email Gate section below.
+ 5. **POPIA consent copy must appear** adjacent to the email input field at all times.
+ 6. **The AI model is Gemini 2.5 Flash via Google Generative AI SDK.** Do not revert to Groq or any OpenRouter model.
+ 7. **Local Context Rule:** All AI recommendations must be South Africa-specific. No generic global cybersecurity boilerplate. Reference POPIA, SIM swap fraud, load shedding, SA threat landscape.
+ 
+ ---
+ 
++## Email Gate (Soft Gate)
++
++The email capture step is **soft-gated** — users can skip it:
++
++- **With email:** Full results page + Tanosec follow-up within one business day
++- **Without email:** Preview results page showing score and category breakdown, but no AI recommendations or personalised report. Reminds user to enter email to unlock full report.
++
++---
++
+ ## Notification system
+ 
+ When a user completes an assessment, two notifications fire in parallel:
+@@ -30,7 +39,7 @@ When a user completes an assessment, two notifications fire in parallel:
+ 
+ Environment variables required:
+ ```
+-GROQ_API_KEY
++GOOGLE_GENERATIVE_AI_API_KEY
+ WHAPI_TOKEN
+ WHAPI_TO_NUMBER=27621234244
+ RESEND_API_KEY
+@@ -39,20 +48,21 @@ NOTIFICATION_EMAIL_FROM=Clarity by Tanosec <clarity@tanosec.co.za>
+ ```
+ 
+ Notification fires from `/src/lib/notifications.ts` (server-side only, 'use server').  
+-Called from `saveLeadCapture()` in `/src/lib/actions.ts`.
++Called from `saveLeadCapture()` in `/src/lib/leadActions.ts`.
+ 
+ ---
+ 
+ ## Assessment structure
+ 
+-**25 questions** across 7 categories with these weights:
++**27 questions** across 8 categories with these weights:
+ - network (15%) — 4 questions including UPS/load shedding question
+ - access (20%) — includes MFA, password policy, vendor access, M365/Google Workspace
+ - data (15%) — backups, encryption, cloud service security
+ - endpoint (15%) — AV, patching, device management
+ - training (15%) — phishing, SA-specific scams (SIM swap, SARS phishing, CEO impersonation)
+ - incident (10%) — incident response plan, breach detection
+-- compliance (10%) — POPIA Information Officer, risk register
++- compliance (5%) — POPIA Information Officer, risk register
++- ai_governance (5%) — AI tool usage policy, human review of AI outputs
+ 
+ **No SSID hiding question.** It was removed because it rewards security theatre.
+ 
+@@ -77,6 +87,7 @@ Score is calculated as a weighted percentage across categories.
+ - **Tanosec brand colours:** Use CSS variables, prefer dark slate/zinc backgrounds with accent colours for scores and CTAs.
+ - **No excessive animations.** Subtle transitions only.
+ - **Mobile-first.** Most SA SME owners will open this on their phone.
++- **sessionStorage for draft answers.** Answers are saved to sessionStorage as the user progresses through questions (key: `clarity_answers_draft`).
+ 
+ ---
+ 
+@@ -84,23 +95,27 @@ Score is calculated as a weighted percentage across categories.
+ 
+ 1. **Landing** — logo, tagline, start button, sector select (optional), company size select (optional)
+ 2. **Questions** — one at a time, progress bar, answer saved to sessionStorage as user goes
+-3. **Email capture** — optional email + newsletter opt-in + POPIA consent copy + privacy policy link
+-4. **Loading** — rotating status messages while Groq generates recommendations
+-5. **Results** — score, 5-band label, category breakdown, AI risks, AI strengths, AI recommendations, dynamic CTA based on worst category, "Book a consultation" Calendly link
++3. **Email capture** — optional email + newsletter opt-in + POPIA consent copy + privacy policy link (soft gate — can be skipped)
++4. **Loading** — rotating status messages while Gemini generates recommendations
++5. **Results** — score, 5-band label, category breakdown, AI risks, AI strengths, AI recommendations, dynamic CTA based on worst category, "Book a consultation" Calendly link, share-my-score component, reassessment reminder (.ics download)
+ 
+ ---
+ 
+ ## Key files
+-
+ | File | Purpose |
+ |------|---------|
+ | `/src/app/page.tsx` | Entire assessment flow UI and state |
+-| `/src/lib/questions.ts` | All 25 questions and category definitions |
+-| `/src/ai/flows/generate-security-recommendations.ts` | AI prompt and Gemini call |
+-| `/src/ai/gemini.ts` | Gemini 2.5 Flash client config |
+-| `/src/lib/actions.ts` | Server actions including saveLeadCapture |
++| `/src/lib/questions.ts` | Question category definitions and weights |
++| `/src/lib/questions-manifest.json` | All 27 questions with categories, options, and industry variants |
++| `/src/ai/flows/generate-security-recommendations.ts` | AI prompt and Gemini call with fallback |
++| `/src/ai/gemini.ts` | Gemini 2.5 Flash client config with retry logic |
++| `/src/lib/actions.ts` | Server actions including getRecommendations |
++| `/src/lib/leadActions.ts` | saveLeadCapture and emailReport server actions |
+ | `/src/lib/notifications.ts` | WhatsApp + Email notification logic |
+ | `/src/app/layout.tsx` | Root layout, metadata |
++| `/src/components/logo.tsx` | Tanosec logo component |
++| `/src/components/share-my-score.tsx` | Social sharing component |
++| `/src/components/footer.tsx` | Footer with contact info |
+ | `/netlify.toml` | Netlify config + security headers |
+ 
+ ---
+@@ -112,6 +127,13 @@ Score is calculated as a weighted percentage across categories.
+ - `/src/app/api/debug-groq/` — deleted
+ - `/src/app/api/test-openrouter/` — deleted
+ - `/src/app/api/test-assessment/` — deleted
+-- `/src/ai/openrouter.ts` — deleted
+-- `/src/ai/openrouter-direct.ts` — deleted
++- `/src/ai/openrouter.ts` — dead code, should be deleted
++- `/src/ai/openrouter-direct.ts` — dead code, should be deleted
+ - `html2canvas` and `jspdf` — removed from package.json
++- `openrouter-client` — still in package.json but unused; should be removed
++
++---
++
++## API routes
++
++No `/api/` routes exist. All server-side logic runs as Next.js Server Actions (marked with `'use server'`).
+diff --git a/package-lock.json b/package-lock.json
+index 1693acf..85b7860 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -817,17 +817,6 @@
+         "node": ">= 8"
+       }
+     },
+-    "node_modules/@opentelemetry/api": {
+-      "version": "1.9.0",
+-      "resolved": "https://registry.npmjs.org/@opentelemetry/api/-/api-1.9.0.tgz",
+-      "integrity": "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==",
+-      "license": "Apache-2.0",
+-      "optional": true,
+-      "peer": true,
+-      "engines": {
+-        "node": ">=8.0.0"
+-      }
+-    },
+     "node_modules/@pkgjs/parseargs": {
+       "version": "0.11.0",
+       "resolved": "https://registry.npmjs.org/@pkgjs/parseargs/-/parseargs-0.11.0.tgz",
+diff --git a/src/lib/questions-manifest.json b/src/lib/questions-manifest.json
+index 1983470..99ce8db 100644
+--- a/src/lib/questions-manifest.json
++++ b/src/lib/questions-manifest.json
+@@ -16,7 +16,8 @@
+         "text": "No, or I don't know",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q2",
+@@ -35,7 +36,8 @@
+         "text": "No, our Wi-Fi is open or uses a weak/default password",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q3",
+@@ -54,7 +56,8 @@
+         "text": "We don't allow guest devices",
+         "score": 10
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q4",
+@@ -73,7 +76,8 @@
+         "text": "No, we do not use MFA",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q5",
+@@ -92,7 +96,8 @@
+         "text": "This process is not formally managed",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q6",
+@@ -111,7 +116,8 @@
+         "text": "No formal password policy exists",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q7",
+@@ -187,6 +193,90 @@
+           "text": "No reliable backup in place",
+           "score": 0
+         }
++      ],
++      "Construction & Engineering": [
++        {
++          "text": "Yes, project files, CAD drawings, and architectural plans backed up daily",
++          "score": 10
++        },
++        {
++          "text": "Backups run but project files and drawings are not specifically included",
++          "score": 4
++        },
++        {
++          "text": "No reliable backup for project data",
++          "score": 0
++        }
++      ],
++      "Professional Services": [
++        {
++          "text": "Yes, client project data and deliverables backed up daily with offsite copy",
++          "score": 10
++        },
++        {
++          "text": "Backups run but client project data is not specifically included",
++          "score": 4
++        },
++        {
++          "text": "No reliable backup for client data",
++          "score": 0
++        }
++      ],
++      "Hospitality & Tourism": [
++        {
++          "text": "Yes, guest records, booking data, and billing backed up daily",
++          "score": 10
++        },
++        {
++          "text": "Backups run but guest records and bookings are not specifically covered",
++          "score": 4
++        },
++        {
++          "text": "No reliable backup for guest data",
++          "score": 0
++        }
++      ],
++      "Education": [
++        {
++          "text": "Yes, student records and academic data backed up daily, tested quarterly",
++          "score": 10
++        },
++        {
++          "text": "Backups run but student records are not specifically verified",
++          "score": 4
++        },
++        {
++          "text": "No reliable backup for student data",
++          "score": 0
++        }
++      ],
++      "Technology": [
++        {
++          "text": "Yes, code repositories, deployment configurations, and customer data backed up daily",
++          "score": 10
++        },
++        {
++          "text": "Backups run but code and configs are not specifically covered",
++          "score": 4
++        },
++        {
++          "text": "No reliable backup for code or system data",
++          "score": 0
++        }
++      ],
++      "Other": [
++        {
++          "text": "Yes, critical business data backed up daily and tested quarterly",
++          "score": 10
++        },
++        {
++          "text": "Backups run but not verified or tested regularly",
++          "score": 4
++        },
++        {
++          "text": "No reliable backup in place",
++          "score": 0
++        }
+       ]
+     }
+   },
+@@ -207,7 +297,8 @@
+         "text": "No, we do not use encryption",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q15",
+@@ -226,7 +317,8 @@
+         "text": "No, we do not have a formal policy",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q9",
+@@ -245,7 +337,8 @@
+         "text": "No, or protection is expired/out-of-date",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q10",
+@@ -264,7 +357,8 @@
+         "text": "Updates are rarely or never installed",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q16",
+@@ -283,7 +377,8 @@
+         "text": "No, we have no remote capabilities",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q11",
+@@ -345,6 +440,104 @@
+           "text": "No formal security training",
+           "score": 0
+         }
++      ],
++      "Construction & Engineering": [
++        {
++          "text": "Yes, including site-specific risks, equipment data, and supplier security",
++          "score": 10
++        },
++        {
++          "text": "Basic security awareness only, no site-specific training",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
++      ],
++      "Professional Services": [
++        {
++          "text": "Yes, including client confidentiality, NDA obligations, and project data handling",
++          "score": 10
++        },
++        {
++          "text": "Basic security awareness only, no client-data scenarios",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
++      ],
++      "Hospitality & Tourism": [
++        {
++          "text": "Yes, including guest data handling, POPIA for guest records, and card fraud awareness",
++          "score": 10
++        },
++        {
++          "text": "Basic awareness only, no hospitality-specific scenarios",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
++      ],
++      "Education": [
++        {
++          "text": "Yes, including FERPA-equivalent SA student data, POPIA, and online safety",
++          "score": 10
++        },
++        {
++          "text": "Basic awareness only, no student-data scenarios",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
++      ],
++      "Technology": [
++        {
++          "text": "Yes, including API security, supply chain risks, and secure development practices",
++          "score": 10
++        },
++        {
++          "text": "Basic awareness only, no developer-specific security training",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
++      ],
++      "Other": [
++        {
++          "text": "Yes, all staff completed training in the last 12 months",
++          "score": 10
++        },
++        {
++          "text": "Training was provided but not consistently to all staff",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
++      ],
++      "Retail & E-commerce": [
++        {
++          "text": "Yes, transaction and customer data covered in regular training",
++          "score": 10
++        },
++        {
++          "text": "Basic awareness only, no retail-specific scenarios",
++          "score": 5
++        },
++        {
++          "text": "No formal security training",
++          "score": 0
++        }
+       ]
+     }
+   },
+@@ -365,7 +558,8 @@
+         "text": "No, we have never tested staff awareness",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q17",
+@@ -384,7 +578,8 @@
+         "text": "No, reporting is not actively encouraged",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q13",
+@@ -403,7 +598,8 @@
+         "text": "No, we don't have a plan",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q18",
+@@ -422,7 +618,8 @@
+         "text": "No, we do not monitor our systems",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q14",
+@@ -441,7 +638,8 @@
+         "text": "No, we do not have cyber insurance",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q19",
+@@ -460,7 +658,8 @@
+         "text": "No, we are not aware of our obligations",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q20",
+@@ -479,7 +678,8 @@
+         "text": "No, we have not performed a risk assessment",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q21",
+@@ -541,6 +741,104 @@
+           "text": "No formal POPIA compliance in place",
+           "score": 0
+         }
++      ],
++      "Construction & Engineering": [
++        {
++          "text": "Yes, Information Officer appointed and supplier/subcontractor data handling documented",
++          "score": 10
++        },
++        {
++          "text": "Informal compliance only, supplier data not formally addressed",
++          "score": 4
++        },
++        {
++          "text": "No formal Information Officer or data policy in place",
++          "score": 0
++        }
++      ],
++      "Professional Services": [
++        {
++          "text": "Yes, Information Officer appointed and client project data policies documented",
++          "score": 10
++        },
++        {
++          "text": "Some compliance but client data policies not formalised",
++          "score": 4
++        },
++        {
++          "text": "No formal POPIA compliance in place",
++          "score": 0
++        }
++      ],
++      "Hospitality & Tourism": [
++        {
++          "text": "Yes, Information Officer appointed and guest consent and billing data processes documented",
++          "score": 10
++        },
++        {
++          "text": "Informal compliance only, guest data handling not formally documented",
++          "score": 4
++        },
++        {
++          "text": "No formal POPIA compliance for guest data",
++          "score": 0
++        }
++      ],
++      "Education": [
++        {
++          "text": "Yes, Information Officer appointed and student data access and consent processes documented",
++          "score": 10
++        },
++        {
++          "text": "Informal compliance only, student data access not formally documented",
++          "score": 4
++        },
++        {
++          "text": "No formal POPIA compliance for student data",
++          "score": 0
++        }
++      ],
++      "Technology": [
++        {
++          "text": "Yes, Information Officer appointed and code, IP, and customer data policies documented",
++          "score": 10
++        },
++        {
++          "text": "Some compliance but code and IP data policies not formalised",
++          "score": 4
++        },
++        {
++          "text": "No formal POPIA compliance in place",
++          "score": 0
++        }
++      ],
++      "Other": [
++        {
++          "text": "Yes, we have a designated Information Officer responsible for data protection",
++          "score": 10
++        },
++        {
++          "text": "Someone handles data protection informally but it's not formalised",
++          "score": 4
++        },
++        {
++          "text": "No Information Officer appointed",
++          "score": 0
++        }
++      ],
++      "Retail & E-commerce": [
++        {
++          "text": "Yes, Information Officer appointed and customer purchase data policies documented",
++          "score": 10
++        },
++        {
++          "text": "Some compliance but customer data policies not formalised",
++          "score": 4
++        },
++        {
++          "text": "No formal POPIA compliance in place",
++          "score": 0
++        }
+       ]
+     }
+   },
+@@ -558,10 +856,11 @@
+         "score": 5
+       },
+       {
+-        "text": "No UPS — systems lose power abruptly during outages",
++        "text": "No UPS \u2014 systems lose power abruptly during outages",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q23",
+@@ -580,7 +879,8 @@
+         "text": "No, our staff have not been trained on these scenarios",
+         "score": 0
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   },
+   {
+     "id": "q24",
+@@ -642,6 +942,104 @@
+           "text": "No vendor access controls in place",
+           "score": 0
+         }
++      ],
++      "Construction & Engineering": [
++        {
++          "text": "Yes, contractors and suppliers have limited, documented access and sign NDAs",
++          "score": 10
++        },
++        {
++          "text": "Contractor access exists but not formally controlled or limited",
++          "score": 3
++        },
++        {
++          "text": "Vendor and contractor access is not tracked or controlled",
++          "score": 0
++        }
++      ],
++      "Professional Services": [
++        {
++          "text": "Yes, vendors and contractors sign NDAs and access is client-project-specific and time-limited",
++          "score": 10
++        },
++        {
++          "text": "Vendor access exists but client data access not formally restricted",
++          "score": 3
++        },
++        {
++          "text": "Vendor access is not tracked or controlled",
++          "score": 0
++        }
++      ],
++      "Hospitality & Tourism": [
++        {
++          "text": "Yes, third-party booking platforms and service vendors have limited, documented access",
++          "score": 10
++        },
++        {
++          "text": "Vendor access exists but guest data access not formally controlled",
++          "score": 3
++        },
++        {
++          "text": "Vendor access is not tracked or controlled",
++          "score": 0
++        }
++      ],
++      "Education": [
++        {
++          "text": "Yes, vendor access to student data is documented, limited, and subject to SA data law",
++          "score": 10
++        },
++        {
++          "text": "Vendor access exists but student data access not formally restricted",
++          "score": 3
++        },
++        {
++          "text": "Vendor access is not tracked or controlled",
++          "score": 0
++        }
++      ],
++      "Technology": [
++        {
++          "text": "Yes, third-party library and API access is managed, signed, and audited for supply chain risks",
++          "score": 10
++        },
++        {
++          "text": "Vendor access exists but supply chain and code access not formally managed",
++          "score": 3
++        },
++        {
++          "text": "Vendor access is not tracked or controlled",
++          "score": 0
++        }
++      ],
++      "Other": [
++        {
++          "text": "Yes, vendor access is documented, time-limited, and audited",
++          "score": 10
++        },
++        {
++          "text": "Vendors have access but it's not formally managed",
++          "score": 3
++        },
++        {
++          "text": "We don't track or control third-party system access",
++          "score": 0
++        }
++      ],
++      "Retail & E-commerce": [
++        {
++          "text": "Yes, POS and e-commerce vendor access is documented, limited, and audited",
++          "score": 10
++        },
++        {
++          "text": "Vendor access exists but customer transaction data not specifically restricted",
++          "score": 3
++        },
++        {
++          "text": "Vendor access is not tracked or controlled",
++          "score": 0
++        }
+       ]
+     }
+   },
+@@ -691,6 +1089,118 @@
+           "text": "No specific cloud account security",
+           "score": 0
+         }
++      ],
++      "Finance & Accounting": [
++        {
++          "text": "Yes, MFA enabled, activity reviewed, and client financial data access-controlled",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but financial data access not specifically controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Retail & E-commerce": [
++        {
++          "text": "Yes, MFA enabled, transaction and customer data access-controlled",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but customer data access not specifically controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Construction & Engineering": [
++        {
++          "text": "Yes, MFA enabled, project files and CAD drawings access-controlled in cloud storage",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but project file access not specifically controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Professional Services": [
++        {
++          "text": "Yes, MFA enabled, activity reviewed, and client project data access-controlled",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but client project data access not specifically controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Hospitality & Tourism": [
++        {
++          "text": "Yes, MFA enabled, guest booking and billing data access-controlled",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but guest data access not specifically controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Education": [
++        {
++          "text": "Yes, MFA enabled, student records and academic data access-controlled",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but student data access not specifically controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Technology": [
++        {
++          "text": "Yes, MFA enabled, code repositories and deployment configs access-controlled",
++          "score": 10
++        },
++        {
++          "text": "MFA enabled but code and system configs not specifically access-controlled",
++          "score": 5
++        },
++        {
++          "text": "No specific cloud account security",
++          "score": 0
++        }
++      ],
++      "Other": [
++        {
++          "text": "Yes, MFA enabled and we review access/activity logs",
++          "score": 10
++        },
++        {
++          "text": "MFA is enabled but we don't review activity logs",
++          "score": 6
++        },
++        {
++          "text": "No, these accounts are not specifically secured or monitored",
++          "score": 0
++        }
+       ]
+     }
+   },
+@@ -770,6 +1280,132 @@
+           "text": "I am not sure whether staff use AI tools",
+           "score": 0
+         }
++      ],
++      "Construction & Engineering": [
++        {
++          "text": "Yes, we have an AI policy covering project data, CAD files, and IP considerations",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools but no policy covers project data or IP",
++          "score": 2
++        },
++        {
++          "text": "We do not use AI tools",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff use AI tools",
++          "score": 0
++        }
++      ],
++      "Professional Services": [
++        {
++          "text": "Yes, we have an AI policy covering client project data and NDA obligations",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools but no policy covers client project data",
++          "score": 2
++        },
++        {
++          "text": "We do not use AI tools",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff use AI tools",
++          "score": 0
++        }
++      ],
++      "Hospitality & Tourism": [
++        {
++          "text": "Yes, we have an AI policy covering guest data and POPIA compliance",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools but no policy covers guest data",
++          "score": 2
++        },
++        {
++          "text": "We do not use AI tools",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff use AI tools",
++          "score": 0
++        }
++      ],
++      "Education": [
++        {
++          "text": "Yes, we have an AI policy covering student data and FERPA-equivalent SA student privacy requirements",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools but no policy covers student data",
++          "score": 2
++        },
++        {
++          "text": "We do not use AI tools",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff use AI tools",
++          "score": 0
++        }
++      ],
++      "Technology": [
++        {
++          "text": "Yes, we have an AI policy covering source code, IP, and customer data confidentiality",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools but no policy covers code or IP",
++          "score": 2
++        },
++        {
++          "text": "We do not use AI tools",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff use AI tools",
++          "score": 0
++        }
++      ],
++      "Other": [
++        {
++          "text": "Yes, we use AI tools and have a clear written policy on data sharing",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools informally but there is no formal policy",
++          "score": 3
++        },
++        {
++          "text": "We do not use AI tools in our business",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff are using AI tools",
++          "score": 0
++        }
++      ],
++      "Retail & E-commerce": [
++        {
++          "text": "Yes, we have an AI policy covering customer purchase data and marketing use",
++          "score": 10
++        },
++        {
++          "text": "Staff use AI tools but no policy covers customer transaction data",
++          "score": 2
++        },
++        {
++          "text": "We do not use AI tools",
++          "score": 7
++        },
++        {
++          "text": "I am not sure whether staff use AI tools",
++          "score": 0
++        }
+       ]
+     }
+   },
+@@ -794,6 +1430,7 @@
+         "text": "We do not use AI tools",
+         "score": 8
+       }
+-    ]
++    ],
++    "industryOptions": {}
+   }
+-]
++]
+\ No newline at end of file
+-- 
+2.39.5
+
+
+From 0d8517bfc7f629540d48088e7aca5ef1fae1b42a Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 15:50:19 +0000
+Subject: [PATCH 3/9] feat: add SA industry benchmark comparison to results
+ page
+
+---
+ src/app/page.tsx                  | 179 +++++++++++++++-
+ src/components/benchmark-card.tsx | 156 ++++++++++++++
+ src/lib/pdfReport.ts              | 325 ++++++++++++++++++++++++++++++
+ 3 files changed, 654 insertions(+), 6 deletions(-)
+ create mode 100644 src/components/benchmark-card.tsx
+ create mode 100644 src/lib/pdfReport.ts
+
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 017493e..ba3eaa1 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -3,6 +3,7 @@
+ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+ import { useRouter } from "next/navigation";
+ import {
++  Download,
+   Shield,
+   Lock,
+   Database,
+@@ -36,6 +37,7 @@ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+ import Logo from "@/components/logo";
+ import ShareMyScore from "@/components/share-my-score";
++import BenchmarkCard from "@/components/benchmark-card";
+ import { Checkbox } from "@/components/ui/checkbox";
+ import {
+   Select,
+@@ -50,6 +52,7 @@ import { getRecommendations } from "@/lib/actions";
+ import { saveLeadCapture, emailReport } from "@/lib/leadActions";
+ import type { GenerateSecurityRecommendationsOutput } from "@/ai/flows/generate-security-recommendations";
+ import { cn } from "@/lib/utils";
++import { generatePDFReport, type PDFReportData } from "@/lib/pdfReport";
+ import { useToast } from "@/hooks/use-toast";
+ import { add } from "date-fns";
+ 
+@@ -302,6 +305,56 @@ export default function ClarityByTanosecPage() {
+     });
+ };
+ 
++  const handleDownloadPDF = async () => {
++    if (!recommendations) return;
++
++    const scorePercentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
++    const getScoreInterpretation = () => {
++      if (scorePercentage < 25) return "Critical Risk";
++      if (scorePercentage < 50) return "High Risk";
++      if (scorePercentage < 70) return "Moderate Risk";
++      if (scorePercentage < 85) return "Low Risk";
++      return "Strong Posture";
++    };
++
++    const enrichedCategoryScores = Object.fromEntries(
++      Object.entries(categoryScores).map(([catId, s]) => [
++        catId,
++        {
++          name: questionCategories[catId]?.name ?? catId,
++          score: s.score,
++          maxScore: s.maxScore,
++          percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
++        },
++      ])
++    );
++
++    const pdfData: PDFReportData = {
++      score: Math.round(scorePercentage),
++      scoreLabel: getScoreInterpretation(),
++      categoryScores: enrichedCategoryScores,
++      risks: recommendations.risks,
++      strengths: recommendations.strengths,
++      recommendations: recommendations.recommendations,
++      date: new Date(),
++    };
++
++    try {
++      await generatePDFReport(pdfData);
++      toast({
++        title: "PDF Downloaded!",
++        description: "Your security report has been saved.",
++      });
++    } catch (error) {
++      console.error("PDF generation failed:", error);
++      toast({
++        variant: "destructive",
++        title: "PDF Generation Failed",
++        description: "Unable to generate your PDF report. Please try again.",
++      });
++    }
++  };
++
+ 
+   const { score, maxScore, categoryScores } = useMemo(() => {
+     let score = 0;
+@@ -494,10 +547,115 @@ export default function ClarityByTanosecPage() {
+     if (isLoading) {
+       return (
+         <div className="flex flex-col items-center justify-center space-y-8 py-12 animate-fade-in">
+-          <div className="relative flex items-center justify-center h-24 w-24">
+-            <div className="absolute inset-0 border-t-2 border-primary rounded-full animate-spin"></div>
+-            <Shield className="h-10 w-10 text-primary animate-pulse" />
++          {/* Enhanced cybersecurity-themed loading animation */}
++          <div className="relative flex items-center justify-center h-32 w-32">
++            {/* Outer glow ring */}
++            <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse" />
++            
++            {/* Shield container with progressive fill */}
++            <svg
++              viewBox="0 0 100 120"
++              className="w-full h-full drop-shadow-[0_0_20px_rgba(34,197,94,0.3)]"
++              style={{ filter: 'drop-shadow(0 0 12px rgba(34,197,94,0.4))' }}
++            >
++              {/* Shield outline */}
++              <path
++                d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
++                fill="none"
++                stroke="rgba(34,197,94,0.3)"
++                strokeWidth="2"
++                className="animate-pulse"
++              />
++              
++              {/* Progressive fill mask */}
++              <defs>
++                <clipPath id="shieldClip">
++                  <path d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z" />
++                </clipPath>
++                <linearGradient id="shieldFill" x1="0%" y1="100%" x2="0%" y2="0%">
++                  <stop offset="0%" stopColor="rgba(34,197,94,0.8)" />
++                  <stop offset="100%" stopColor="rgba(34,197,94,0.2)" />
++                </linearGradient>
++                <linearGradient id="scanLine" x1="0%" y1="0%" x2="0%" y2="100%">
++                  <stop offset="0%" stopColor="rgba(34,197,94,0)" />
++                  <stop offset="50%" stopColor="rgba(34,197,94,1)" />
++                  <stop offset="100%" stopColor="rgba(34,197,94,0)" />
++                </linearGradient>
++              </defs>
++              
++              {/* Filled shield background */}
++              <g clipPath="url(#shieldClip)">
++                {/* Base shield fill */}
++                <path
++                  d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
++                  fill="rgba(34,197,94,0.1)"
++                />
++                
++                {/* Progressive fill bar */}
++                <rect
++                  x="10"
++                  y="115"
++                  width="80"
++                  height="0"
++                  fill="url(#shieldFill)"
++                  className="animate-shield-fill"
++                />
++                
++                {/* Scanning line */}
++                <rect
++                  x="10"
++                  y="0"
++                  width="80"
++                  height="4"
++                  fill="url(#scanLine)"
++                  className="animate-scan"
++                />
++                
++                {/* Data stream dots */}
++                <circle cx="30" cy="50" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-1" />
++                <circle cx="50" cy="70" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-2" />
++                <circle cx="70" cy="40" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-3" />
++              </g>
++              
++              {/* Shield icon overlay */}
++              <g transform="translate(50, 58)">
++                <path
++                  d="M0 -18 L12 -10 L12 2 C12 14 6 22 0 26 C-6 22 -12 14 -12 2 L-12 -10 Z"
++                  fill="none"
++                  stroke="rgba(34,197,94,0.8)"
++                  strokeWidth="2"
++                  className="animate-pulse"
++                />
++                <path
++                  d="M0 -10 L0 16 M-8 4 L0 12 L8 4"
++                  fill="none"
++                  stroke="rgba(34,197,94,0.8)"
++                  strokeWidth="2"
++                  strokeLinecap="round"
++                  strokeLinejoin="round"
++                  className="animate-pulse"
++                />
++              </g>
++            </svg>
++          </div>
++          
++          {/* Step indicators */}
++          <div className="flex items-center gap-3">
++            {loadingMessages.map((_, index) => (
++              <div
++                key={index}
++                className={`h-2 w-2 rounded-full transition-all duration-500 ${
++                  index === loadingMsgIndex
++                    ? 'bg-primary w-6 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
++                    : index < loadingMsgIndex
++                    ? 'bg-primary/50'
++                    : 'bg-primary/20'
++                }`}
++              />
++            ))}
+           </div>
++          
++          {/* Rotating text message */}
+           <h2 className="text-2xl font-headline transition-opacity duration-500 ease-in-out text-foreground">
+             {loadingMessages[loadingMsgIndex]}
+           </h2>
+@@ -735,7 +893,7 @@ export default function ClarityByTanosecPage() {
+                   {scorePercentage.toFixed(0)}%
+                 </p>
+               </div>
+-              <div className="flex justify-center">
++              <div className="flex flex-col items-center gap-3">
+                 <Badge variant="outline" className={cn("text-lg px-4 py-1", interpretation.color, interpretation.border)}>
+                   {interpretation.text}
+                 </Badge>
+@@ -899,7 +1057,12 @@ export default function ClarityByTanosecPage() {
+           </div>
+ 
+           <div>
+-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
++                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
++            {/* Benchmark Comparison Card */}
++            <div className="lg:col-span-3">
++              <BenchmarkCard userScore={scorePercentage} sector={sector} />
++            </div>
++
+             <Card className="lg:col-span-1 print-card border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
+               <CardHeader className="print-card-header pb-2">
+                 <CardTitle className="text-2xl print-card-title text-center">Overall Security Score</CardTitle>
+@@ -918,8 +1081,12 @@ export default function ClarityByTanosecPage() {
+                 {/* Share inside the score card */}
+                 <div className="pt-2 no-print">
+                   <p className="text-sm text-muted-foreground mb-2">Share your Results.</p>
+-                  <div className="flex justify-center">
++                  <div className="flex flex-col items-center gap-3">
+                     <ShareMyScore scorePercent={Math.round(scorePercentage)} />
++                    <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="border-primary/50 hover:bg-primary/10 text-primary w-full justify-center flex gap-2">
++                      <Download className="h-4 w-4" />
++                      Download PDF Report
++                    </Button>
+                   </div>
+                 </div>
+               </CardContent>
+diff --git a/src/components/benchmark-card.tsx b/src/components/benchmark-card.tsx
+new file mode 100644
+index 0000000..4b27ca8
+--- /dev/null
++++ b/src/components/benchmark-card.tsx
+@@ -0,0 +1,156 @@
++"use client";
++
++import { TrendingUp, TrendingDown, Minus, BarChart3 } from "lucide-react";
++import { Card, CardContent } from "@/components/ui/card";
++import { cn } from "@/lib/utils";
++
++// SA Industry benchmark averages by sector
++const BENCHMARK_DATA: Record<string, number> = {
++  "Legal & Compliance": 45,
++  "Healthcare & Medical": 40,
++  "Finance & Accounting": 50,
++  "Retail & E-commerce": 38,
++  "Construction & Engineering": 35,
++  "Professional Services": 42,
++  "Hospitality & Tourism": 33,
++  "Education": 40,
++  "Technology": 48,
++  "Other": 40,
++};
++
++const DEFAULT_BENCHMARK = 40;
++
++interface BenchmarkCardProps {
++  userScore: number;
++  sector: string;
++}
++
++export default function BenchmarkCard({ userScore, sector }: BenchmarkCardProps) {
++  const sectorAverage = sector && BENCHMARK_DATA[sector] !== undefined 
++    ? BENCHMARK_DATA[sector] 
++    : DEFAULT_BENCHMARK;
++  
++  const displaySector = sector || "SA SME";
++  const difference = userScore - sectorAverage;
++  const isAboveAverage = difference > 0;
++  const isBelowAverage = difference < 0;
++  const isAtAverage = difference === 0;
++
++  const getComparisonIcon = () => {
++    if (isAboveAverage) return <TrendingUp className="h-5 w-5" />;
++    if (isBelowAverage) return <TrendingDown className="h-5 w-5" />;
++    return <Minus className="h-5 w-5" />;
++  };
++
++  const getComparisonText = () => {
++    if (isAboveAverage) return "above";
++    if (isBelowAverage) return "below";
++    return "at";
++  };
++
++  const getComparisonColor = () => {
++    if (isAboveAverage) return "text-emerald-400";
++    if (isBelowAverage) return "text-orange-400";
++    return "text-yellow-400";
++  };
++
++  const getComparisonBg = () => {
++    if (isAboveAverage) return "bg-emerald-400/10 border-emerald-400/30";
++    if (isBelowAverage) return "bg-orange-400/10 border-orange-400/30";
++    return "bg-yellow-400/10 border-yellow-400/30";
++  };
++
++  const getComparisonBadgeColor = () => {
++    if (isAboveAverage) return "bg-emerald-500/20 text-emerald-400 border-emerald-400/50";
++    if (isBelowAverage) return "bg-orange-500/20 text-orange-400 border-orange-400/50";
++    return "bg-yellow-500/20 text-yellow-400 border-yellow-400/50";
++  };
++
++  // Calculate positions for the visual bar (0-100 scale)
++  const userPosition = Math.min(Math.max(userScore, 0), 100);
++  const averagePosition = Math.min(Math.max(sectorAverage, 0), 100);
++
++  return (
++    <Card className={cn("border shadow-lg", getComparisonBg())}>
++      <CardContent className="p-4 space-y-4">
++        {/* Header */}
++        <div className="flex items-center gap-2">
++          <BarChart3 className={cn("h-5 w-5", getComparisonColor())} />
++          <span className="font-semibold text-sm text-foreground">
++            How do you compare?
++          </span>
++        </div>
++
++        {/* Main comparison message */}
++        <div className="text-center space-y-2">
++          <div className={cn("flex items-center justify-center gap-2 font-bold text-lg", getComparisonColor())}>
++            {getComparisonIcon()}
++            <span>
++              {isAboveAverage && `+${Math.abs(difference).toFixed(0)}%`}
++              {isBelowAverage && `-${Math.abs(difference).toFixed(0)}%`}
++              {isAtAverage && "="}
++              {" "}
++              {getComparisonText()} average
++            </span>
++          </div>
++          <p className="text-sm text-muted-foreground">
++            You scored {isAboveAverage ? "above" : isBelowAverage ? "below" : "at"} the {displaySector} average for SA businesses
++          </p>
++        </div>
++
++        {/* Visual comparison bar */}
++        <div className="space-y-2">
++          <div className="relative h-3 bg-muted/50 rounded-full overflow-hidden">
++            {/* Sector average marker */}
++            <div 
++              className="absolute top-0 bottom-0 w-0.5 bg-yellow-400/80 z-10"
++              style={{ left: `${averagePosition}%` }}
++            />
++            
++            {/* User score fill */}
++            <div 
++              className={cn(
++                "absolute top-0 bottom-0 rounded-full transition-all duration-500",
++                isAboveAverage ? "bg-emerald-500" : isBelowAverage ? "bg-orange-500" : "bg-yellow-500"
++              )}
++              style={{ width: `${userPosition}%` }}
++            />
++          </div>
++
++          {/* Legend */}
++          <div className="flex justify-between items-center text-xs">
++            <div className="flex items-center gap-1.5">
++              <div className="w-3 h-3 rounded-full bg-muted/50 border border-muted-foreground/30" />
++              <span className="text-muted-foreground">0%</span>
++            </div>
++            <div className="flex items-center gap-1.5">
++              <div className="w-3 h-3 rounded-full bg-muted/50 border border-muted-foreground/30" />
++              <span className="text-muted-foreground">100%</span>
++            </div>
++          </div>
++        </div>
++
++        {/* Score markers legend */}
++        <div className="flex justify-between items-center pt-2 border-t border-border/30">
++          <div className="flex items-center gap-2">
++            <div className={cn("w-2 h-2 rounded-full", isAboveAverage ? "bg-emerald-500" : isBelowAverage ? "bg-orange-500" : "bg-yellow-500")} />
++            <span className="text-sm font-medium">Your score: <span className={getComparisonColor()}>{userScore.toFixed(0)}%</span></span>
++          </div>
++          <div className="flex items-center gap-2">
++            <div className="w-2 h-2 rounded-full bg-yellow-400/80" />
++            <span className="text-sm text-muted-foreground">Avg: {sectorAverage}%</span>
++          </div>
++        </div>
++
++        {/* Badge indicator */}
++        <div className="flex justify-center">
++          <div className={cn("px-3 py-1 rounded-full text-xs font-semibold border", getComparisonBadgeColor())}>
++            {isAboveAverage && "🏆 Above Average"}
++            {isBelowAverage && "📈 Room to Improve"}
++            {isAtAverage && "⚖️ At Average"}
++          </div>
++        </div>
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/src/lib/pdfReport.ts b/src/lib/pdfReport.ts
+new file mode 100644
+index 0000000..ff2efa0
+--- /dev/null
++++ b/src/lib/pdfReport.ts
+@@ -0,0 +1,325 @@
++import jsPDF from "jspdf";
++
++export interface PDFReportData {
++  score: number;
++  scoreLabel: string;
++  categoryScores: Record<string, { name: string; score: number; maxScore: number; percentage: number }>;
++  risks: string[];
++  strengths: string[];
++  recommendations: Array<{ recommendation: string; priority: "high" | "medium" | "low" }>;
++  date: Date;
++}
++
++const COLORS = {
++  darkBg: [15, 23, 42] as [number, number, number],       // #0f172a - slate-900
++  cardBg: [30, 41, 59] as [number, number, number],       // #1e293b - slate-800
++  accent: [34, 197, 94] as [number, number, number],     // #22c55e - green-500
++  textPrimary: [248, 250, 252] as [number, number, number], // #f8fafc - slate-50
++  textMuted: [148, 163, 184] as [number, number, number], // #94a3b8 - slate-400
++  highRisk: [239, 68, 68] as [number, number, number],    // #ef4444 - red-500
++  mediumRisk: [249, 115, 22] as [number, number, number],  // #f97316 - orange-500
++  lowRisk: [34, 197, 94] as [number, number, number],     // #22c55e - green-500
++  border: [51, 65, 85] as [number, number, number],       // #334155 - slate-700
++};
++
++const PRIORITY_COLORS = {
++  high: COLORS.highRisk,
++  medium: COLORS.mediumRisk,
++  low: COLORS.lowRisk,
++};
++
++function formatDate(date: Date): string {
++  return date.toLocaleDateString("en-ZA", {
++    day: "numeric",
++    month: "long",
++    year: "numeric",
++  });
++}
++
++export async function generatePDFReport(data: PDFReportData): Promise<void> {
++  const doc = new jsPDF({
++    orientation: "portrait",
++    unit: "mm",
++    format: "a4",
++  });
++
++  const pageWidth = doc.internal.pageSize.getWidth();
++  const pageHeight = doc.internal.pageSize.getHeight();
++  const margin = 15;
++  const contentWidth = pageWidth - 2 * margin;
++  let yPos = margin;
++
++  // Helper function to add a new page if needed
++  const checkNewPage = (requiredHeight: number) => {
++    if (yPos + requiredHeight > pageHeight - margin) {
++      doc.addPage();
++      yPos = margin;
++      return true;
++    }
++    return false;
++  };
++
++  // Helper to draw text with word wrap
++  const drawWrappedText = (text: string, x: number, y: number, maxWidth: number, lineHeight: number = 6) => {
++    const lines = doc.splitTextToSize(text, maxWidth);
++    lines.forEach((line: string) => {
++      checkNewPage(lineHeight);
++      doc.text(line, x, y);
++      yPos = Math.max(yPos, y + lineHeight);
++      y += lineHeight;
++    });
++    return y;
++  };
++
++  // === HEADER ===
++  // Dark header background
++  doc.setFillColor(...COLORS.darkBg);
++  doc.rect(0, 0, pageWidth, 45, "F");
++
++  // Logo area (simple text-based header since we can't embed images easily)
++  doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
++  doc.setFontSize(24);
++  doc.setFont("helvetica", "bold");
++  doc.text("CLARITY", margin, 22);
++
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.setFontSize(12);
++  doc.setFont("helvetica", "normal");
++  doc.text("Security Report", margin, 30);
++
++  // Right side - company name
++  doc.setTextColor(...COLORS.textMuted);
++  doc.setFontSize(10);
++  doc.text("by Tanosec Cybersecurity", pageWidth - margin, 22, { align: "right" });
++
++  yPos = 55;
++
++  // === REPORT INFO ===
++  doc.setTextColor(...COLORS.textMuted);
++  doc.setFontSize(10);
++  doc.text(`Assessment Date: ${formatDate(data.date)}`, margin, yPos);
++  yPos += 8;
++
++  // === SCORE SECTION ===
++  checkNewPage(40);
++  doc.setFillColor(...COLORS.cardBg);
++  doc.roundedRect(margin, yPos, contentWidth, 35, 3, 3, "F");
++
++  // Score
++  doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
++  doc.setFontSize(36);
++  doc.setFont("helvetica", "bold");
++  doc.text(`${data.score}%`, pageWidth / 2, yPos + 18, { align: "center" });
++
++  // Score label
++  const scoreColors: Record<string, [number, number, number]> = {
++    "Critical Risk": COLORS.highRisk,
++    "High Risk": COLORS.mediumRisk,
++    "Moderate Risk": [249, 115, 22],
++    "Low Risk": COLORS.lowRisk,
++    "Strong Posture": [16, 185, 129],
++  };
++  const scoreColor = scoreColors[data.scoreLabel] || COLORS.textPrimary;
++  doc.setTextColor(...scoreColor);
++  doc.setFontSize(14);
++  doc.setFont("helvetica", "bold");
++  doc.text(data.scoreLabel, pageWidth / 2, yPos + 28, { align: "center" });
++
++  yPos += 42;
++
++  // === CATEGORY BREAKDOWN ===
++  checkNewPage(30);
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.setFontSize(14);
++  doc.setFont("helvetica", "bold");
++  doc.text("Category Breakdown", margin, yPos);
++  yPos += 8;
++
++  // Table header
++  doc.setFillColor(...COLORS.cardBg);
++  doc.rect(margin, yPos, contentWidth, 10, "F");
++  doc.setTextColor(...COLORS.textMuted);
++  doc.setFontSize(9);
++  doc.setFont("helvetica", "bold");
++  doc.text("Category", margin + 3, yPos + 7);
++  doc.text("Score", pageWidth / 2, yPos + 7, { align: "center" });
++  doc.text("Percentage", pageWidth - margin - 3, yPos + 7, { align: "right" });
++  yPos += 10;
++
++  // Table rows
++  doc.setFont("helvetica", "normal");
++  Object.entries(data.categoryScores).forEach(([catId, cat]) => {
++    if (cat.maxScore === 0) return;
++    checkNewPage(10);
++    
++    const rowColor = yPos % 2 === 0 ? [255, 255, 255] : [40, 40, 40];
++    doc.setFillColor(rowColor[0], rowColor[1], rowColor[2]);
++    doc.rect(margin, yPos, contentWidth, 9, "F");
++
++    doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++    doc.setFontSize(10);
++    doc.text(cat.name, margin + 3, yPos + 6.5);
++    doc.text(`${cat.score}/${cat.maxScore}`, pageWidth / 2, yPos + 6.5, { align: "center" });
++    
++    doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
++    doc.text(`${cat.percentage.toFixed(0)}%`, pageWidth - margin - 3, yPos + 6.5, { align: "right" });
++    yPos += 9;
++  });
++
++  yPos += 10;
++
++  // === AI RISKS ===
++  checkNewPage(30);
++  doc.setTextColor(...COLORS.highRisk);
++  doc.setFontSize(14);
++  doc.setFont("helvetica", "bold");
++  doc.text("Key Risks Identified", margin, yPos);
++  yPos += 8;
++
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.setFontSize(10);
++  doc.setFont("helvetica", "normal");
++  data.risks.forEach((risk, i) => {
++    const lines = doc.splitTextToSize(`${i + 1}. ${risk}`, contentWidth - 10);
++    checkNewPage(lines.length * 6 + 6);
++    
++    doc.setTextColor(...COLORS.highRisk);
++    doc.setFont("helvetica", "bold");
++    doc.text(`${i + 1}.`, margin, yPos + 5);
++    
++    doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++    doc.setFont("helvetica", "normal");
++    doc.text(lines.slice(1).join("\n") || "", margin + 8, yPos + 5, { maxWidth: contentWidth - 15 });
++    
++    yPos += lines.length * 6 + 4;
++  });
++
++  yPos += 8;
++
++  // === AI STRENGTHS ===
++  checkNewPage(30);
++  doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
++  doc.setFontSize(14);
++  doc.setFont("helvetica", "bold");
++  doc.text("Security Strengths", margin, yPos);
++  yPos += 8;
++
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.setFontSize(10);
++  doc.setFont("helvetica", "normal");
++  data.strengths.forEach((strength, i) => {
++    const lines = doc.splitTextToSize(`${i + 1}. ${strength}`, contentWidth - 10);
++    checkNewPage(lines.length * 6 + 6);
++    
++    doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
++    doc.setFont("helvetica", "bold");
++    doc.text(`${i + 1}.`, margin, yPos + 5);
++    
++    doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++    doc.setFont("helvetica", "normal");
++    doc.text(lines.slice(1).join("\n") || "", margin + 8, yPos + 5, { maxWidth: contentWidth - 15 });
++    
++    yPos += lines.length * 6 + 4;
++  });
++
++  yPos += 10;
++
++  // === RECOMMENDATIONS ===
++  checkNewPage(30);
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.setFontSize(14);
++  doc.setFont("helvetica", "bold");
++  doc.text("Prioritised Recommendations", margin, yPos);
++  yPos += 8;
++
++  // Group recommendations by priority
++  const groupedRecs = {
++    high: data.recommendations.filter(r => r.priority === "high"),
++    medium: data.recommendations.filter(r => r.priority === "medium"),
++    low: data.recommendations.filter(r => r.priority === "low"),
++  };
++
++  const priorityOrder: Array<"high" | "medium" | "low"> = ["high", "medium", "low"];
++  const priorityLabels: Record<string, string> = {
++    high: "HIGH PRIORITY",
++    medium: "MEDIUM PRIORITY",
++    low: "LOW PRIORITY",
++  };
++
++  priorityOrder.forEach(priority => {
++    const recs = groupedRecs[priority];
++    if (recs.length === 0) return;
++
++    checkNewPage(20);
++    
++    // Priority header
++    doc.setFillColor(...PRIORITY_COLORS[priority]);
++    doc.roundedRect(margin, yPos, contentWidth, 8, 2, 2, "F");
++    doc.setTextColor(255, 255, 255);
++    doc.setFontSize(10);
++    doc.setFont("helvetica", "bold");
++    doc.text(priorityLabels[priority], margin + 3, yPos + 5.5);
++    yPos += 12;
++
++    recs.forEach((rec, i) => {
++      const lines = doc.splitTextToSize(rec.recommendation, contentWidth - 8);
++      checkNewPage(lines.length * 6 + 10);
++      
++      // Recommendation box
++      doc.setFillColor(...COLORS.cardBg);
++      doc.roundedRect(margin, yPos, contentWidth, lines.length * 6 + 6, 2, 2, "F");
++      
++      doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++      doc.setFontSize(9);
++      doc.setFont("helvetica", "normal");
++      doc.text(lines, margin + 4, yPos + 5, { maxWidth: contentWidth - 8 });
++      
++      yPos += lines.length * 6 + 8;
++    });
++
++    yPos += 6;
++  });
++
++  // === CONTACT SECTION ===
++  checkNewPage(40);
++  yPos += 5;
++  doc.setFillColor(...COLORS.darkBg);
++  doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, "F");
++
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.setFontSize(12);
++  doc.setFont("helvetica", "bold");
++  doc.text("Contact Tanosec Cybersecurity", margin + 5, yPos + 10);
++
++  doc.setTextColor(...COLORS.textMuted);
++  doc.setFontSize(10);
++  doc.setFont("helvetica", "normal");
++  doc.text("Telephone: +27 621 234 244", margin + 5, yPos + 18);
++  doc.text("Email: support@tanosec.co.za", margin + 5, yPos + 24);
++  doc.text("Book a consultation: calendly.com/tanosec", margin + 5, yPos + 30);
++
++  // === FOOTER ===
++  // On every page
++  const totalPages = doc.getNumberOfPages();
++  for (let i = 1; i <= totalPages; i++) {
++    doc.setPage(i);
++    
++    // Footer line
++    doc.setDrawColor(...COLORS.border);
++    doc.setLineWidth(0.5);
++    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
++
++    // Footer text
++    doc.setTextColor(...COLORS.textMuted);
++    doc.setFontSize(8);
++    doc.setFont("helvetica", "normal");
++    doc.text("Powered by Tanosec Cybersecurity", margin, pageHeight - 6);
++    doc.text("Think Like a Hacker, Secure Like a Pro", pageWidth - margin, pageHeight - 6, { align: "right" });
++    
++    // Page number
++    doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: "center" });
++  }
++
++  // Save the PDF
++  doc.save(`Clarity-Security-Report-${data.date.toISOString().split("T")[0]}.pdf`);
++}
+-- 
+2.39.5
+
+
+From 7f388c33acf5b602de3e43c96474ea1361814299 Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 15:53:36 +0000
+Subject: [PATCH 4/9] feat: themed loading animation, PDF export, jsPDF
+ dependency
+
+---
+ package-lock.json   | 227 ++++++++++++++++++++++++++++++++++++++++++++
+ package.json        |   1 +
+ src/app/globals.css |  85 +++++++++++++++++
+ 3 files changed, 313 insertions(+)
+
+diff --git a/package-lock.json b/package-lock.json
+index 85b7860..eb26bde 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -36,6 +36,7 @@
+         "date-fns": "^3.6.0",
+         "dotenv": "^16.5.0",
+         "embla-carousel-react": "^8.6.0",
++        "jspdf": "^4.2.1",
+         "lucide-react": "^0.475.0",
+         "next": "^15.5.15",
+         "openrouter-client": "^1.5.1",
+@@ -2103,6 +2104,12 @@
+         "undici-types": "~6.21.0"
+       }
+     },
++    "node_modules/@types/pako": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/@types/pako/-/pako-2.0.4.tgz",
++      "integrity": "sha512-VWDCbrLeVXJM9fihYodcLiIv0ku+AlOa/TQ1SvYOaBuyrSKgEcro95LJyIsJ4vSo6BXIxOKxiJAat04CmST9Fw==",
++      "license": "MIT"
++    },
+     "node_modules/@types/prop-types": {
+       "version": "15.7.15",
+       "resolved": "https://registry.npmjs.org/@types/prop-types/-/prop-types-15.7.15.tgz",
+@@ -2110,6 +2117,13 @@
+       "devOptional": true,
+       "license": "MIT"
+     },
++    "node_modules/@types/raf": {
++      "version": "3.4.3",
++      "resolved": "https://registry.npmjs.org/@types/raf/-/raf-3.4.3.tgz",
++      "integrity": "sha512-c4YAvMedbPZ5tEyxzQdMoOhhJ4RD3rngZIdwC2/qDN3d7JpEhB6fiBRKVY1lg5B7Wk+uPBjn5f39j1/2MY1oOw==",
++      "license": "MIT",
++      "optional": true
++    },
+     "node_modules/@types/react": {
+       "version": "18.3.24",
+       "resolved": "https://registry.npmjs.org/@types/react/-/react-18.3.24.tgz",
+@@ -2131,6 +2145,13 @@
+         "@types/react": "^18.0.0"
+       }
+     },
++    "node_modules/@types/trusted-types": {
++      "version": "2.0.7",
++      "resolved": "https://registry.npmjs.org/@types/trusted-types/-/trusted-types-2.0.7.tgz",
++      "integrity": "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==",
++      "license": "MIT",
++      "optional": true
++    },
+     "node_modules/@yarnpkg/lockfile": {
+       "version": "1.1.0",
+       "resolved": "https://registry.npmjs.org/@yarnpkg/lockfile/-/lockfile-1.1.0.tgz",
+@@ -2207,6 +2228,16 @@
+       "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==",
+       "license": "MIT"
+     },
++    "node_modules/base64-arraybuffer": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/base64-arraybuffer/-/base64-arraybuffer-1.0.2.tgz",
++      "integrity": "sha512-I3yl4r9QB5ZRY3XuJVEPfc2XhZO6YweFPI+UovAzn+8/hb3oJ6lnysaFcjVpkCPfVWFUDvoZ8kmVDP7WyRtYtQ==",
++      "license": "MIT",
++      "optional": true,
++      "engines": {
++        "node": ">= 0.6.0"
++      }
++    },
+     "node_modules/binary-extensions": {
+       "version": "2.3.0",
+       "resolved": "https://registry.npmjs.org/binary-extensions/-/binary-extensions-2.3.0.tgz",
+@@ -2316,6 +2347,26 @@
+       ],
+       "license": "CC-BY-4.0"
+     },
++    "node_modules/canvg": {
++      "version": "3.0.11",
++      "resolved": "https://registry.npmjs.org/canvg/-/canvg-3.0.11.tgz",
++      "integrity": "sha512-5ON+q7jCTgMp9cjpu4Jo6XbvfYwSB2Ow3kzHKfIyJfaCAOHLbdKPQqGKgfED/R5B+3TFFfe8pegYA+b423SRyA==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "@babel/runtime": "^7.12.5",
++        "@types/raf": "^3.4.0",
++        "core-js": "^3.8.3",
++        "raf": "^3.4.1",
++        "regenerator-runtime": "^0.13.7",
++        "rgbcolor": "^1.0.1",
++        "stackblur-canvas": "^2.0.0",
++        "svg-pathdata": "^6.0.3"
++      },
++      "engines": {
++        "node": ">=10.0.0"
++      }
++    },
+     "node_modules/chalk": {
+       "version": "4.1.2",
+       "resolved": "https://registry.npmjs.org/chalk/-/chalk-4.1.2.tgz",
+@@ -2441,6 +2492,18 @@
+         "simple-swizzle": "^0.2.2"
+       }
+     },
++    "node_modules/core-js": {
++      "version": "3.49.0",
++      "resolved": "https://registry.npmjs.org/core-js/-/core-js-3.49.0.tgz",
++      "integrity": "sha512-es1U2+YTtzpwkxVLwAFdSpaIMyQaq0PBgm3YD1W3Qpsn1NAmO3KSgZfu+oGSWVu6NvLHoHCV/aYcsE5wiB7ALg==",
++      "hasInstallScript": true,
++      "license": "MIT",
++      "optional": true,
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/core-js"
++      }
++    },
+     "node_modules/cross-spawn": {
+       "version": "7.0.6",
+       "resolved": "https://registry.npmjs.org/cross-spawn/-/cross-spawn-7.0.6.tgz",
+@@ -2455,6 +2518,16 @@
+         "node": ">= 8"
+       }
+     },
++    "node_modules/css-line-break": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/css-line-break/-/css-line-break-2.1.0.tgz",
++      "integrity": "sha512-FHcKFCZcAha3LwfVBhCQbW2nCNbkZXn7KVUJcsT5/P8YmfsVja0FMPJr0B903j/E69HUphKiV9iQArX8SDYA4w==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "utrie": "^1.0.2"
++      }
++    },
+     "node_modules/cssesc": {
+       "version": "3.0.0",
+       "resolved": "https://registry.npmjs.org/cssesc/-/cssesc-3.0.0.tgz",
+@@ -2665,6 +2738,16 @@
+         "csstype": "^3.0.2"
+       }
+     },
++    "node_modules/dompurify": {
++      "version": "3.4.11",
++      "resolved": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.11.tgz",
++      "integrity": "sha512-zhlUV12GsaRzMsf9q5M254YhA4+VuF0fG+QFqu6aYpoGlKtz+w8//jBcGVYBgQkR5GHjUomejY84AV+/uPbWdw==",
++      "license": "(MPL-2.0 OR Apache-2.0)",
++      "optional": true,
++      "optionalDependencies": {
++        "@types/trusted-types": "^2.0.7"
++      }
++    },
+     "node_modules/dotenv": {
+       "version": "16.6.1",
+       "resolved": "https://registry.npmjs.org/dotenv/-/dotenv-16.6.1.tgz",
+@@ -2801,6 +2884,17 @@
+         "node": ">=8.6.0"
+       }
+     },
++    "node_modules/fast-png": {
++      "version": "6.4.0",
++      "resolved": "https://registry.npmjs.org/fast-png/-/fast-png-6.4.0.tgz",
++      "integrity": "sha512-kAqZq1TlgBjZcLr5mcN6NP5Rv4V2f22z00c3g8vRrwkcqjerx7BEhPbOnWCPqaHUl2XWQBJQvOT/FQhdMT7X/Q==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/pako": "^2.0.3",
++        "iobuffer": "^5.3.2",
++        "pako": "^2.1.0"
++      }
++    },
+     "node_modules/fast-sha256": {
+       "version": "1.3.0",
+       "resolved": "https://registry.npmjs.org/fast-sha256/-/fast-sha256-1.3.0.tgz",
+@@ -2816,6 +2910,12 @@
+         "reusify": "^1.0.4"
+       }
+     },
++    "node_modules/fflate": {
++      "version": "0.8.3",
++      "resolved": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz",
++      "integrity": "sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==",
++      "license": "MIT"
++    },
+     "node_modules/fill-range": {
+       "version": "7.1.1",
+       "resolved": "https://registry.npmjs.org/fill-range/-/fill-range-7.1.1.tgz",
+@@ -3032,6 +3132,20 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/html2canvas": {
++      "version": "1.4.1",
++      "resolved": "https://registry.npmjs.org/html2canvas/-/html2canvas-1.4.1.tgz",
++      "integrity": "sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "css-line-break": "^2.1.0",
++        "text-segmentation": "^1.0.3"
++      },
++      "engines": {
++        "node": ">=8.0.0"
++      }
++    },
+     "node_modules/internmap": {
+       "version": "2.0.3",
+       "resolved": "https://registry.npmjs.org/internmap/-/internmap-2.0.3.tgz",
+@@ -3041,6 +3155,12 @@
+         "node": ">=12"
+       }
+     },
++    "node_modules/iobuffer": {
++      "version": "5.4.0",
++      "resolved": "https://registry.npmjs.org/iobuffer/-/iobuffer-5.4.0.tgz",
++      "integrity": "sha512-DRebOWuqDvxunfkNJAlc3IzWIPD5xVxwUNbHr7xKB8E6aLJxIPfNX3CoMJghcFjpv6RWQsrcJbghtEwSPoJqMA==",
++      "license": "MIT"
++    },
+     "node_modules/is-arrayish": {
+       "version": "0.3.2",
+       "resolved": "https://registry.npmjs.org/is-arrayish/-/is-arrayish-0.3.2.tgz",
+@@ -3211,6 +3331,23 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/jspdf": {
++      "version": "4.2.1",
++      "resolved": "https://registry.npmjs.org/jspdf/-/jspdf-4.2.1.tgz",
++      "integrity": "sha512-YyAXyvnmjTbR4bHQRLzex3CuINCDlQnBqoSYyjJwTP2x9jDLuKDzy7aKUl0hgx3uhcl7xzg32agn5vlie6HIlQ==",
++      "license": "MIT",
++      "dependencies": {
++        "@babel/runtime": "^7.28.6",
++        "fast-png": "^6.2.0",
++        "fflate": "^0.8.1"
++      },
++      "optionalDependencies": {
++        "canvg": "^3.0.11",
++        "core-js": "^3.6.0",
++        "dompurify": "^3.3.1",
++        "html2canvas": "^1.0.0-rc.5"
++      }
++    },
+     "node_modules/klaw-sync": {
+       "version": "6.0.0",
+       "resolved": "https://registry.npmjs.org/klaw-sync/-/klaw-sync-6.0.0.tgz",
+@@ -3489,6 +3626,22 @@
+       "integrity": "sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==",
+       "license": "BlueOak-1.0.0"
+     },
++    "node_modules/pako": {
++      "version": "2.2.0",
++      "resolved": "https://registry.npmjs.org/pako/-/pako-2.2.0.tgz",
++      "integrity": "sha512-zJq6RP/5q+TO2OpFV3FHzlPnFjmkb7Nc99a5SNjJE+uu/PkpChs+NIZSSzbBoD+6kjiISXjfYdwj1ZRQ81dz/w==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/puzrin"
++        },
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/nodeca"
++        }
++      ],
++      "license": "(MIT AND Zlib)"
++    },
+     "node_modules/patch-package": {
+       "version": "8.0.1",
+       "resolved": "https://registry.npmjs.org/patch-package/-/patch-package-8.0.1.tgz",
+@@ -3583,6 +3736,13 @@
+       "integrity": "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==",
+       "license": "ISC"
+     },
++    "node_modules/performance-now": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/performance-now/-/performance-now-2.1.0.tgz",
++      "integrity": "sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow==",
++      "license": "MIT",
++      "optional": true
++    },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+@@ -3770,6 +3930,16 @@
+       ],
+       "license": "MIT"
+     },
++    "node_modules/raf": {
++      "version": "3.4.1",
++      "resolved": "https://registry.npmjs.org/raf/-/raf-3.4.1.tgz",
++      "integrity": "sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "performance-now": "^2.1.0"
++      }
++    },
+     "node_modules/react": {
+       "version": "18.3.1",
+       "resolved": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+@@ -3984,6 +4154,13 @@
+         "decimal.js-light": "^2.4.1"
+       }
+     },
++    "node_modules/regenerator-runtime": {
++      "version": "0.13.11",
++      "resolved": "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.13.11.tgz",
++      "integrity": "sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==",
++      "license": "MIT",
++      "optional": true
++    },
+     "node_modules/resend": {
+       "version": "6.12.3",
+       "resolved": "https://registry.npmjs.org/resend/-/resend-6.12.3.tgz",
+@@ -4035,6 +4212,16 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/rgbcolor": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/rgbcolor/-/rgbcolor-1.0.1.tgz",
++      "integrity": "sha512-9aZLIrhRaD97sgVhtJOW6ckOEh6/GnvQtdVNfdZ6s67+3/XwLS9lBcQYzEEhYVeUowN7pRzMLsyGhK2i/xvWbw==",
++      "license": "MIT OR SEE LICENSE IN FEEL-FREE.md",
++      "optional": true,
++      "engines": {
++        "node": ">= 0.8.15"
++      }
++    },
+     "node_modules/run-parallel": {
+       "version": "1.2.0",
+       "resolved": "https://registry.npmjs.org/run-parallel/-/run-parallel-1.2.0.tgz",
+@@ -4200,6 +4387,16 @@
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/stackblur-canvas": {
++      "version": "2.7.0",
++      "resolved": "https://registry.npmjs.org/stackblur-canvas/-/stackblur-canvas-2.7.0.tgz",
++      "integrity": "sha512-yf7OENo23AGJhBriGx0QivY5JP6Y1HbrrDI6WLt6C5auYZXlQrheoY8hD4ibekFKz1HOfE48Ww8kMWMnJD/zcQ==",
++      "license": "MIT",
++      "optional": true,
++      "engines": {
++        "node": ">=0.1.14"
++      }
++    },
+     "node_modules/standardwebhooks": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/standardwebhooks/-/standardwebhooks-1.0.0.tgz",
+@@ -4384,6 +4581,16 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/svg-pathdata": {
++      "version": "6.0.3",
++      "resolved": "https://registry.npmjs.org/svg-pathdata/-/svg-pathdata-6.0.3.tgz",
++      "integrity": "sha512-qsjeeq5YjBZ5eMdFuUa4ZosMLxgr5RZ+F+Y1OrDhuOCEInRMA3x74XdBtggJcj9kOeInz0WE+LgCPDkZFlBYJw==",
++      "license": "MIT",
++      "optional": true,
++      "engines": {
++        "node": ">=12.0.0"
++      }
++    },
+     "node_modules/svix": {
+       "version": "1.92.2",
+       "resolved": "https://registry.npmjs.org/svix/-/svix-1.92.2.tgz",
+@@ -4496,6 +4703,16 @@
+         }
+       }
+     },
++    "node_modules/text-segmentation": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/text-segmentation/-/text-segmentation-1.0.3.tgz",
++      "integrity": "sha512-iOiPUo/BGnZ6+54OsWxZidGCsdU8YbE4PSpdPinp7DeMtUJNJBoJ/ouUSTJjHkh1KntHaltHl/gDs2FC4i5+Nw==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "utrie": "^1.0.2"
++      }
++    },
+     "node_modules/thenify": {
+       "version": "3.3.1",
+       "resolved": "https://registry.npmjs.org/thenify/-/thenify-3.3.1.tgz",
+@@ -4644,6 +4861,16 @@
+       "integrity": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==",
+       "license": "MIT"
+     },
++    "node_modules/utrie": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/utrie/-/utrie-1.0.2.tgz",
++      "integrity": "sha512-1MLa5ouZiOmQzUbjbu9VmjLzn1QLXBhwpUa7kdLUQK+KQ5KA9I1vk5U4YHe/X2Ch7PYnJfWuWT+VbuxbGwljhw==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "base64-arraybuffer": "^1.0.2"
++      }
++    },
+     "node_modules/victory-vendor": {
+       "version": "36.9.2",
+       "resolved": "https://registry.npmjs.org/victory-vendor/-/victory-vendor-36.9.2.tgz",
+diff --git a/package.json b/package.json
+index c8f4ef8..abaa2dc 100644
+--- a/package.json
++++ b/package.json
+@@ -38,6 +38,7 @@
+     "date-fns": "^3.6.0",
+     "dotenv": "^16.5.0",
+     "embla-carousel-react": "^8.6.0",
++    "jspdf": "^4.2.1",
+     "lucide-react": "^0.475.0",
+     "next": "^15.5.15",
+     "openrouter-client": "^1.5.1",
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 2437db4..a854216 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -150,3 +150,88 @@
+ @layer base {
+   footer.fixed { position: static !important; inset: auto !important; }
+ }
++
++/* Cybersecurity-themed loading screen animations */
++@keyframes shield-fill {
++  0% {
++    transform: translateY(105px);
++    opacity: 0.3;
++  }
++  50% {
++    opacity: 0.8;
++  }
++  100% {
++    transform: translateY(-105px);
++    opacity: 0.3;
++  }
++}
++
++@keyframes scan {
++  0% {
++    transform: translateY(-4px);
++    opacity: 0;
++  }
++  10% {
++    opacity: 1;
++  }
++  90% {
++    opacity: 1;
++  }
++  100% {
++    transform: translateY(120px);
++    opacity: 0;
++  }
++}
++
++@keyframes data-stream-1 {
++  0%, 100% {
++    opacity: 0.2;
++    transform: translateY(0);
++  }
++  50% {
++    opacity: 0.8;
++    transform: translateY(10px);
++  }
++}
++
++@keyframes data-stream-2 {
++  0%, 100% {
++    opacity: 0.2;
++    transform: translateY(0);
++  }
++  50% {
++    opacity: 0.8;
++    transform: translateY(-8px);
++  }
++}
++
++@keyframes data-stream-3 {
++  0%, 100% {
++    opacity: 0.2;
++    transform: translateY(0);
++  }
++  50% {
++    opacity: 0.8;
++    transform: translateY(12px);
++  }
++}
++
++.animate-shield-fill {
++  animation: shield-fill 2.2s ease-in-out infinite;
++}
++
++.animate-scan {
++  animation: scan 1.1s ease-in-out infinite;
++}
++
++.animate-data-stream-1 {
++  animation: data-stream-1 1.5s ease-in-out infinite;
++}
++
++.animate-data-stream-2 {
++  animation: data-stream-2 1.8s ease-in-out infinite 0.3s;
++}
++
++.animate-data-stream-3 {
++  animation: data-stream-3 1.3s ease-in-out infinite 0.6s;
++}
+-- 
+2.39.5
+
+
+From 06dedb51ad4714c4650ce4e86ce1085e4f87e61d Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 17:12:45 +0000
+Subject: [PATCH 5/9] fix: correct CSP domains and merge duplicate headers in
+ netlify.toml
+
+---
+ netlify.toml | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/netlify.toml b/netlify.toml
+index 6a5cebd..129974c 100644
+--- a/netlify.toml
++++ b/netlify.toml
+@@ -6,10 +6,6 @@
+   NODE_VERSION = "20"
+   NPM_VERSION = "10"
+ 
+-## Note: Do NOT add a SPA catch-all redirect for Next.js
+-## Next on Netlify handles routing internally. A catch-all redirect to index.html would
+-## cause images and other assets to serve HTML, leading to "not a valid image" errors.
+-
+ # Handle Next.js static assets
+ [[headers]]
+   for = "/_next/static/*"
+@@ -22,30 +18,18 @@
+   [headers.values]
+     Cache-Control = "public, max-age=86400"
+ 
+-# Cache the app icon as well
+ [[headers]]
+   for = "/icon.png"
+   [headers.values]
+     Cache-Control = "public, max-age=86400"
+ 
+-# Global security headers (non-invasive)
++# Global security headers — single block, no conflicts
+ [[headers]]
+   for = "/*"
+   [headers.values]
+     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+     X-Content-Type-Options = "nosniff"
+-    X-Frame-Options = "SAMEORIGIN"
+-    Referrer-Policy = "strict-origin-when-cross-origin"
+-    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+-    Cross-Origin-Opener-Policy = "same-origin"
+-    Cross-Origin-Resource-Policy = "same-origin"
+-
+-[[headers]]
+-  for = "/*"
+-  [headers.values]
+     X-Frame-Options = "DENY"
+-    X-Content-Type-Options = "nosniff"
+-    X-XSS-Protection = "1; mode=block"
+     Referrer-Policy = "strict-origin-when-cross-origin"
+     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://calendly.com; frame-ancestors 'none';"
++    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.netlify.app; connect-src 'self' https://api.resend.com https://gate.whapi.cloud https://generativelanguage.googleapis.com https://calendly.com https://*.netlify.app; frame-ancestors 'none'; font-src 'self' data:; object-src 'none';"
+-- 
+2.39.5
+
+
+From 5f734f0ec1abd17a14203fece5139bc1ed7c85a9 Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 18:30:48 +0000
+Subject: [PATCH 6/9] fix: surface actual AI error messages in UI for debugging
+
+---
+ src/ai/flows/generate-security-recommendations.ts | 15 +++++++--------
+ src/ai/gemini.ts                                  |  9 ++++++++-
+ src/app/page.tsx                                  |  2 +-
+ 3 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/ai/flows/generate-security-recommendations.ts b/src/ai/flows/generate-security-recommendations.ts
+index 0bda520..daa9add 100644
+--- a/src/ai/flows/generate-security-recommendations.ts
++++ b/src/ai/flows/generate-security-recommendations.ts
+@@ -43,7 +43,6 @@ const FALLBACK: GenerateSecurityRecommendationsOutput = {
+ };
+ 
+ const systemPrompt = `IMPORTANT: Your response must be a raw JSON object only. No markdown. No code fences. No backticks. No text before or after the JSON. Start your response with { and end with }.
+-
+ You are a senior cybersecurity advisor specialising in South African SMEs. You work for Tanosec Cybersecurity (Bloemfontein). Tagline: "Think Like a Hacker, Secure Like a Pro."
+ 
+ Your role is to analyse a business's cybersecurity self-assessment and deliver sharp, practical, SA-specific recommendations. You understand the local threat landscape: SIM swap fraud, SASSA and SAPO phishing campaigns, load shedding impacts on UPS and backup reliability, POPIA compliance obligations, and the budget constraints of Free State and broader SA SMEs.
+@@ -63,7 +62,6 @@ You must respond with ONLY a valid JSON object in this exact structure:
+     }
+   ]
+ }
+-
+ Rules:
+ - risks: 3-5 items. Specific to their actual weak answers.
+ - strengths: 2-4 genuine acknowledgments of what they are doing well.
+@@ -100,15 +98,16 @@ ${Object.entries(input.assessmentResponses)
+   .map(([q, a]) => `Q: ${q}\nA: ${a}`)
+   .join('\n\n')}
+ 
+-Analyse these and return your JSON assessment. Tailor risks and recommendations 
+-to this specific industry where relevant.`;
++Analyse these and return your JSON assessment. Tailor risks and recommendations to
++this specific industry where relevant.`;
+ 
+   try {
+     const { content, success, error } = await callGemini(systemPrompt, userPrompt);
+     
+     if (!success) {
+       console.error('[Clarity] AI call failed:', error);
+-      return FALLBACK;
++      // Add toast description with the actual error
++      throw new Error('AI_ERROR: ' + error); // Let the caller handle it
+     }
+ 
+     console.log('[Clarity] Raw Gemini response (first 500 chars):', content.substring(0, 500));
+@@ -118,7 +117,7 @@ to this specific industry where relevant.`;
+ 
+     if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+       console.error('[Clarity] No JSON object found in Gemini response. Raw content:', content.substring(0, 300));
+-      return FALLBACK;
++      throw new Error('AI_ERROR: No JSON object found in Gemini response');
+     }
+ 
+     const jsonString = content.slice(jsonStart, jsonEnd + 1);
+@@ -131,10 +130,10 @@ to this specific industry where relevant.`;
+     } catch (parseError) {
+       console.error('[Clarity] Parse/validation failed:', parseError);
+       console.error('[Clarity] Attempted to parse:', jsonString.substring(0, 300));
+-      return FALLBACK;
++      throw new Error('AI_ERROR: Parse/validation failed');
+     }
+   } catch (err) {
+     console.error('[Clarity] Unexpected error in flow:', err);
+-    return FALLBACK;
++    throw err; // Re-throw to let caller handle it
+   }
+ }
+diff --git a/src/ai/gemini.ts b/src/ai/gemini.ts
+index cca69f6..98ccee7 100644
+--- a/src/ai/gemini.ts
++++ b/src/ai/gemini.ts
+@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
+ export async function callGemini(systemPrompt: string, userPrompt: string): Promise<{ content: string; success: boolean; error?: string }> {
+   const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+   if (!apiKey) {
+-    return { content: '', success: false, error: 'GOOGLE_GENERATIVE_AI_API_KEY not set' };
++    return { content: '', success: false, error: 'GOOGLE_GENERATIVE_AI_API_KEY not set in environment' };
+   }
+   for (let attempt = 1; attempt <= 2; attempt++) {
+     try {
+@@ -15,6 +15,13 @@ export async function callGemini(systemPrompt: string, userPrompt: string): Prom
+         generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' },
+       });
+       const result = await model.generateContent(userPrompt);
++      
++      // Check for safety filter blocks
++      const promptFeedback = result.response.promptFeedback;
++      if (promptFeedback?.blockReason) {
++        return { content: '', success: false, error: 'Content blocked by safety filter: ' + promptFeedback.blockReason };
++      }
++      
+       return { content: result.response.text(), success: true };
+     } catch (err) {
+       const msg = err instanceof Error ? err.message : 'Unknown error';
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index ba3eaa1..c9e8d5b 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -439,7 +439,7 @@ export default function ClarityByTanosecPage() {
+           toast({
+             variant: "destructive",
+             title: "AI recommendations unavailable",
+-            description: "Showing a fallback report so you can continue.",
++            description: error instanceof Error ? error.message : "Showing a fallback report so you can continue.",
+           });
+           setRecommendations(FALLBACK_RECOMMENDATIONS);
+           setStep(totalQuestions + 2);
+-- 
+2.39.5
+
+
+From 7589c82ec9abf3f30a1c8117da7d9fc933f04976 Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 18:49:24 +0000
+Subject: [PATCH 7/9] refactor: redesign PDF report to professional security
+ document standard
+
+---
+ src/lib/pdfReport.ts | 495 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 340 insertions(+), 155 deletions(-)
+
+diff --git a/src/lib/pdfReport.ts b/src/lib/pdfReport.ts
+index ff2efa0..6919969 100644
+--- a/src/lib/pdfReport.ts
++++ b/src/lib/pdfReport.ts
+@@ -10,20 +10,35 @@ export interface PDFReportData {
+   date: Date;
+ }
+ 
++// Tanosec brand color
++const BRAND_GREEN = "#bef051";
++const BRAND_GREEN_RGB: [number, number, number] = [190, 240, 81];
++
++// Color palette for professional security report
+ const COLORS = {
++  // Core colors
+   darkBg: [15, 23, 42] as [number, number, number],       // #0f172a - slate-900
+-  cardBg: [30, 41, 59] as [number, number, number],       // #1e293b - slate-800
+-  accent: [34, 197, 94] as [number, number, number],     // #22c55e - green-500
++  cardBg: [30, 41, 59] as [number, number, number],         // #1e293b - slate-800
++  accent: BRAND_GREEN_RGB,
+   textPrimary: [248, 250, 252] as [number, number, number], // #f8fafc - slate-50
+-  textMuted: [148, 163, 184] as [number, number, number], // #94a3b8 - slate-400
+-  highRisk: [239, 68, 68] as [number, number, number],    // #ef4444 - red-500
++  textMuted: [148, 163, 184] as [number, number, number],  // #94a3b8 - slate-400
++  white: [255, 255, 255] as [number, number, number],
++  
++  // Risk colors (professional security standard)
++  critical: [220, 38, 38] as [number, number, number],      // #dc2626 - red-600
++  highRisk: [239, 68, 68] as [number, number, number],      // #ef4444 - red-500
+   mediumRisk: [249, 115, 22] as [number, number, number],  // #f97316 - orange-500
+-  lowRisk: [34, 197, 94] as [number, number, number],     // #22c55e - green-500
+-  border: [51, 65, 85] as [number, number, number],       // #334155 - slate-700
++  lowRisk: [34, 197, 94] as [number, number, number],       // #22c55e - green-500
++  yellow: [234, 179, 8] as [number, number, number],        // #eab308 - yellow-500
++  emerald: [16, 185, 129] as [number, number, number],       // #10b981 - emerald-500
++  
++  // UI colors
++  border: [51, 65, 85] as [number, number, number],        // #334155 - slate-700
++  tableAlt: [22, 33, 51] as [number, number, number],      // lighter dark for alternating rows
+ };
+ 
+ const PRIORITY_COLORS = {
+-  high: COLORS.highRisk,
++  high: COLORS.critical,
+   medium: COLORS.mediumRisk,
+   low: COLORS.lowRisk,
+ };
+@@ -36,6 +51,33 @@ function formatDate(date: Date): string {
+   });
+ }
+ 
++// Get color based on score percentage
++function getScoreColor(percentage: number): [number, number, number] {
++  if (percentage < 25) return COLORS.critical;
++  if (percentage < 50) return COLORS.highRisk;
++  if (percentage < 70) return COLORS.yellow;
++  if (percentage < 85) return COLORS.lowRisk;
++  return COLORS.emerald;
++}
++
++// Get score label text based on percentage
++function getScoreDescription(percentage: number): string {
++  if (percentage < 25) return "Critical vulnerabilities require immediate attention. Your organization is at high risk of security incidents.";
++  if (percentage < 50) return "Significant security gaps exist. Attackers could exploit multiple vulnerabilities.";
++  if (percentage < 70) return "Moderate security posture with room for improvement. Address identified risks promptly.";
++  if (percentage < 85) return "Good security posture. Continue monitoring and improving security measures.";
++  return "Strong security posture. Your organization demonstrates robust security practices.";
++}
++
++// Get risk band label
++function getRiskBandLabel(percentage: number): string {
++  if (percentage < 25) return "CRITICAL RISK";
++  if (percentage < 50) return "HIGH RISK";
++  if (percentage < 70) return "MODERATE RISK";
++  if (percentage < 85) return "LOW RISK";
++  return "MINIMAL RISK";
++}
++
+ export async function generatePDFReport(data: PDFReportData): Promise<void> {
+   const doc = new jsPDF({
+     orientation: "portrait",
+@@ -43,194 +85,307 @@ export async function generatePDFReport(data: PDFReportData): Promise<void> {
+     format: "a4",
+   });
+ 
++  // Page dimensions
+   const pageWidth = doc.internal.pageSize.getWidth();
+   const pageHeight = doc.internal.pageSize.getHeight();
+-  const margin = 15;
+-  const contentWidth = pageWidth - 2 * margin;
+-  let yPos = margin;
++  const marginSide = 20;
++  const marginTopBottom = 15;
++  const contentWidth = pageWidth - 2 * marginSide;
++  
++  // Current vertical position
++  let yPos = marginTopBottom;
++  let currentPage = 1;
++  const totalPagesPlaceholder = "X";
++
++  // Helper to add page header
++  const addPageHeader = () => {
++    // Header background - subtle
++    doc.setFillColor(...COLORS.darkBg);
++    doc.rect(0, 0, pageWidth, 28, "F");
++    
++    // "CLARITY SECURITY REPORT" - bold, centered
++    doc.setTextColor(BRAND_GREEN_RGB[0], BRAND_GREEN_RGB[1], BRAND_GREEN_RGB[2]);
++    doc.setFontSize(18);
++    doc.setFont("helvetica", "bold");
++    doc.text("CLARITY SECURITY REPORT", pageWidth / 2, 12, { align: "center" });
++    
++    // Tanosec branding
++    doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++    doc.setFontSize(10);
++    doc.setFont("helvetica", "normal");
++    doc.text("by Tanosec Cybersecurity", pageWidth / 2, 19, { align: "center" });
++    
++    // Thin accent line separator
++    doc.setDrawColor(BRAND_GREEN_RGB[0], BRAND_GREEN_RGB[1], BRAND_GREEN_RGB[2]);
++    doc.setLineWidth(0.5);
++    doc.line(marginSide, 24, pageWidth - marginSide, 24);
++    
++    // Date of assessment
++    doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++    doc.setFontSize(8);
++    doc.text(`Assessment Date: ${formatDate(data.date)}`, pageWidth / 2, 27, { align: "center" });
++  };
+ 
+-  // Helper function to add a new page if needed
++  // Helper to add page footer
++  const addPageFooter = (pageNum: number, total: number) => {
++    // Footer line
++    doc.setDrawColor(COLORS.border[0], COLORS.border[1], COLORS.border[2]);
++    doc.setLineWidth(0.3);
++    doc.line(marginSide, pageHeight - marginTopBottom + 2, pageWidth - marginSide, pageHeight - marginTopBottom + 2);
++
++    // Footer text
++    doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++    doc.setFontSize(8);
++    doc.setFont("helvetica", "normal");
++    doc.text("Powered by Tanosec Cybersecurity", marginSide, pageHeight - marginTopBottom + 7);
++    doc.text("Think Like a Hacker, Secure Like a Pro", pageWidth - marginSide, pageHeight - marginTopBottom + 7, { align: "right" });
++    
++    // Page X of Y
++    doc.text(`Page ${pageNum} of ${total}`, pageWidth / 2, pageHeight - marginTopBottom + 7, { align: "center" });
++  };
++
++  // Helper function to check if we need a new page
+   const checkNewPage = (requiredHeight: number) => {
+-    if (yPos + requiredHeight > pageHeight - margin) {
++    const footerHeight = 12;
++    const bottomMargin = pageHeight - marginTopBottom - footerHeight;
++    if (yPos + requiredHeight > bottomMargin) {
+       doc.addPage();
+-      yPos = margin;
++      currentPage++;
++      yPos = marginTopBottom + 32; // Account for header height
++      addPageHeader();
+       return true;
+     }
+     return false;
+   };
+ 
+-  // Helper to draw text with word wrap
+-  const drawWrappedText = (text: string, x: number, y: number, maxWidth: number, lineHeight: number = 6) => {
++  // Helper to draw wrapped text
++  const drawWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, lineHeight: number = 5) => {
++    doc.setFontSize(fontSize);
+     const lines = doc.splitTextToSize(text, maxWidth);
+     lines.forEach((line: string) => {
+-      checkNewPage(lineHeight);
+       doc.text(line, x, y);
+-      yPos = Math.max(yPos, y + lineHeight);
+       y += lineHeight;
+     });
+-    return y;
++    return lines.length * lineHeight;
+   };
+ 
+-  // === HEADER ===
+-  // Dark header background
+-  doc.setFillColor(...COLORS.darkBg);
+-  doc.rect(0, 0, pageWidth, 45, "F");
+-
+-  // Logo area (simple text-based header since we can't embed images easily)
+-  doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
+-  doc.setFontSize(24);
+-  doc.setFont("helvetica", "bold");
+-  doc.text("CLARITY", margin, 22);
+-
+-  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+-  doc.setFontSize(12);
+-  doc.setFont("helvetica", "normal");
+-  doc.text("Security Report", margin, 30);
+-
+-  // Right side - company name
+-  doc.setTextColor(...COLORS.textMuted);
+-  doc.setFontSize(10);
+-  doc.text("by Tanosec Cybersecurity", pageWidth - margin, 22, { align: "right" });
+-
+-  yPos = 55;
+-
+-  // === REPORT INFO ===
+-  doc.setTextColor(...COLORS.textMuted);
+-  doc.setFontSize(10);
+-  doc.text(`Assessment Date: ${formatDate(data.date)}`, margin, yPos);
+-  yPos += 8;
++  // === INITIAL PAGE SETUP ===
++  addPageHeader();
++  yPos = marginTopBottom + 35; // Start below header
+ 
+   // === SCORE SECTION ===
+-  checkNewPage(40);
++  checkNewPage(55);
++  
++  // Score card background
+   doc.setFillColor(...COLORS.cardBg);
+-  doc.roundedRect(margin, yPos, contentWidth, 35, 3, 3, "F");
+-
+-  // Score
+-  doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
+-  doc.setFontSize(36);
++  doc.roundedRect(marginSide, yPos, contentWidth, 50, 3, 3, "F");
++  
++  // Border accent
++  doc.setDrawColor(BRAND_GREEN_RGB[0], BRAND_GREEN_RGB[1], BRAND_GREEN_RGB[2]);
++  doc.setLineWidth(1);
++  doc.roundedRect(marginSide, yPos, contentWidth, 50, 3, 3, "S");
++  
++  // Large score number - color coded
++  const scoreColor = getScoreColor(data.score);
++  doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
++  doc.setFontSize(48);
+   doc.setFont("helvetica", "bold");
+-  doc.text(`${data.score}%`, pageWidth / 2, yPos + 18, { align: "center" });
+-
+-  // Score label
+-  const scoreColors: Record<string, [number, number, number]> = {
+-    "Critical Risk": COLORS.highRisk,
+-    "High Risk": COLORS.mediumRisk,
+-    "Moderate Risk": [249, 115, 22],
+-    "Low Risk": COLORS.lowRisk,
+-    "Strong Posture": [16, 185, 129],
+-  };
+-  const scoreColor = scoreColors[data.scoreLabel] || COLORS.textPrimary;
+-  doc.setTextColor(...scoreColor);
++  doc.text(`${data.score}%`, pageWidth / 2, yPos + 22, { align: "center" });
++  
++  // Risk band label
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+   doc.setFontSize(14);
+   doc.setFont("helvetica", "bold");
+-  doc.text(data.scoreLabel, pageWidth / 2, yPos + 28, { align: "center" });
+-
+-  yPos += 42;
++  doc.text(getRiskBandLabel(data.score), pageWidth / 2, yPos + 32, { align: "center" });
++  
++  // Score description
++  doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++  doc.setFontSize(9);
++  doc.setFont("helvetica", "normal");
++  const descLines = doc.splitTextToSize(getScoreDescription(data.score), contentWidth - 10);
++  doc.text(descLines, pageWidth / 2, yPos + 42, { align: "center", maxWidth: contentWidth - 10 });
++  
++  yPos += 58;
+ 
+   // === CATEGORY BREAKDOWN ===
+-  checkNewPage(30);
++  checkNewPage(35);
++  
++  // Section heading
+   doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+-  doc.setFontSize(14);
++  doc.setFontSize(12);
+   doc.setFont("helvetica", "bold");
+-  doc.text("Category Breakdown", margin, yPos);
++  doc.text("Category Breakdown", marginSide, yPos);
+   yPos += 8;
+ 
++  // Find worst performing category
++  let worstCategory = { name: "", percentage: 100 };
++  Object.values(data.categoryScores).forEach(cat => {
++    if (cat.maxScore > 0 && cat.percentage < worstCategory.percentage) {
++      worstCategory = { name: cat.name, percentage: cat.percentage };
++    }
++  });
++
+   // Table header
+-  doc.setFillColor(...COLORS.cardBg);
+-  doc.rect(margin, yPos, contentWidth, 10, "F");
+-  doc.setTextColor(...COLORS.textMuted);
++  doc.setFillColor(...COLORS.darkBg);
++  doc.rect(marginSide, yPos, contentWidth, 10, "F");
++  
++  doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
+   doc.setFontSize(9);
+   doc.setFont("helvetica", "bold");
+-  doc.text("Category", margin + 3, yPos + 7);
+-  doc.text("Score", pageWidth / 2, yPos + 7, { align: "center" });
+-  doc.text("Percentage", pageWidth - margin - 3, yPos + 7, { align: "right" });
++  doc.text("Domain", marginSide + 3, yPos + 7);
++  doc.text("Score", marginSide + 75, yPos + 7, { align: "center" });
++  doc.text("Max", marginSide + 100, yPos + 7, { align: "center" });
++  doc.text("Percentage", pageWidth - marginSide - 3, yPos + 7, { align: "right" });
+   yPos += 10;
+ 
+   // Table rows
+   doc.setFont("helvetica", "normal");
++  let rowIndex = 0;
+   Object.entries(data.categoryScores).forEach(([catId, cat]) => {
+     if (cat.maxScore === 0) return;
+-    checkNewPage(10);
++    checkNewPage(12);
+     
+-    const rowColor = yPos % 2 === 0 ? [255, 255, 255] : [40, 40, 40];
+-    doc.setFillColor(rowColor[0], rowColor[1], rowColor[2]);
+-    doc.rect(margin, yPos, contentWidth, 9, "F");
+-
++    rowIndex++;
++    const isAlt = rowIndex % 2 === 0;
++    const isWorst = cat.name === worstCategory.name;
++    
++    // Row background
++    if (isWorst) {
++      doc.setFillColor(220, 38, 38, 0.15); // Red tint for worst
++    } else if (isAlt) {
++      doc.setFillColor(...COLORS.tableAlt);
++    } else {
++      doc.setFillColor(...COLORS.cardBg);
++    }
++    doc.rect(marginSide, yPos, contentWidth, 11, "F");
++    
++    // Domain name
+     doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+     doc.setFontSize(10);
+-    doc.text(cat.name, margin + 3, yPos + 6.5);
+-    doc.text(`${cat.score}/${cat.maxScore}`, pageWidth / 2, yPos + 6.5, { align: "center" });
++    doc.text(cat.name, marginSide + 3, yPos + 7.5);
++    
++    // Score
++    doc.text(`${cat.score}`, marginSide + 75, yPos + 7.5, { align: "center" });
++    
++    // Max
++    doc.text(`${cat.maxScore}`, marginSide + 100, yPos + 7.5, { align: "center" });
+     
+-    doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
+-    doc.text(`${cat.percentage.toFixed(0)}%`, pageWidth - margin - 3, yPos + 6.5, { align: "right" });
+-    yPos += 9;
++    // Percentage with color bar
++    const barWidth = 30;
++    const barHeight = 4;
++    const barX = pageWidth - marginSide - 3 - barWidth;
++    const barY = yPos + 3.5;
++    
++    // Background bar
++    doc.setFillColor(...COLORS.border);
++    doc.rect(barX, barY, barWidth, barHeight, "F");
++    
++    // Filled bar (color coded)
++    const fillWidth = (cat.percentage / 100) * barWidth;
++    if (fillWidth > 0) {
++      const barColor = getScoreColor(cat.percentage);
++      doc.setFillColor(barColor[0], barColor[1], barColor[2]);
++      doc.rect(barX, barY, fillWidth, barHeight, "F");
++    }
++    
++    // Percentage text
++    doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++    doc.setFontSize(9);
++    doc.text(`${cat.percentage.toFixed(0)}%`, pageWidth - marginSide - 3, yPos + 7.5, { align: "right" });
++    
++    yPos += 11;
+   });
+ 
+-  yPos += 10;
++  yPos += 12;
+ 
+-  // === AI RISKS ===
++  // === RISKS SECTION ===
+   checkNewPage(30);
+-  doc.setTextColor(...COLORS.highRisk);
+-  doc.setFontSize(14);
++  
++  // Section heading with red accent
++  doc.setTextColor(COLORS.highRisk[0], COLORS.highRisk[1], COLORS.highRisk[2]);
++  doc.setFontSize(12);
+   doc.setFont("helvetica", "bold");
+-  doc.text("Key Risks Identified", margin, yPos);
++  doc.text("Key Risks Identified", marginSide, yPos);
+   yPos += 8;
+ 
++  // Red accent line
++  doc.setDrawColor(COLORS.highRisk[0], COLORS.highRisk[1], COLORS.highRisk[2]);
++  doc.setLineWidth(1);
++  doc.line(marginSide, yPos, marginSide + 4, yPos);
++  yPos += 5;
++
++  // Risks list
+   doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+   doc.setFontSize(10);
+   doc.setFont("helvetica", "normal");
++  
+   data.risks.forEach((risk, i) => {
+-    const lines = doc.splitTextToSize(`${i + 1}. ${risk}`, contentWidth - 10);
+-    checkNewPage(lines.length * 6 + 6);
++    const lines = doc.splitTextToSize(risk, contentWidth - 8);
++    checkNewPage(lines.length * 5 + 10);
+     
+-    doc.setTextColor(...COLORS.highRisk);
++    // Number
++    doc.setTextColor(COLORS.highRisk[0], COLORS.highRisk[1], COLORS.highRisk[2]);
+     doc.setFont("helvetica", "bold");
+-    doc.text(`${i + 1}.`, margin, yPos + 5);
++    doc.text(`${i + 1}.`, marginSide, yPos + 5);
+     
++    // Text
+     doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+     doc.setFont("helvetica", "normal");
+-    doc.text(lines.slice(1).join("\n") || "", margin + 8, yPos + 5, { maxWidth: contentWidth - 15 });
++    doc.text(lines, marginSide + 8, yPos + 5, { maxWidth: contentWidth - 8 });
+     
+-    yPos += lines.length * 6 + 4;
++    yPos += lines.length * 5 + 4;
+   });
+ 
+-  yPos += 8;
++  yPos += 10;
+ 
+-  // === AI STRENGTHS ===
++  // === STRENGTHS SECTION ===
+   checkNewPage(30);
+-  doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
+-  doc.setFontSize(14);
++  
++  // Section heading with green accent
++  doc.setTextColor(COLORS.lowRisk[0], COLORS.lowRisk[1], COLORS.lowRisk[2]);
++  doc.setFontSize(12);
+   doc.setFont("helvetica", "bold");
+-  doc.text("Security Strengths", margin, yPos);
++  doc.text("Security Strengths", marginSide, yPos);
+   yPos += 8;
+ 
++  // Green accent line
++  doc.setDrawColor(COLORS.lowRisk[0], COLORS.lowRisk[1], COLORS.lowRisk[2]);
++  doc.setLineWidth(1);
++  doc.line(marginSide, yPos, marginSide + 4, yPos);
++  yPos += 5;
++
++  // Strengths list
+   doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+   doc.setFontSize(10);
+   doc.setFont("helvetica", "normal");
++  
+   data.strengths.forEach((strength, i) => {
+-    const lines = doc.splitTextToSize(`${i + 1}. ${strength}`, contentWidth - 10);
+-    checkNewPage(lines.length * 6 + 6);
++    const lines = doc.splitTextToSize(strength, contentWidth - 8);
++    checkNewPage(lines.length * 5 + 10);
+     
+-    doc.setTextColor(COLORS.accent[0], COLORS.accent[1], COLORS.accent[2]);
++    // Number
++    doc.setTextColor(COLORS.lowRisk[0], COLORS.lowRisk[1], COLORS.lowRisk[2]);
+     doc.setFont("helvetica", "bold");
+-    doc.text(`${i + 1}.`, margin, yPos + 5);
++    doc.text(`${i + 1}.`, marginSide, yPos + 5);
+     
++    // Text
+     doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+     doc.setFont("helvetica", "normal");
+-    doc.text(lines.slice(1).join("\n") || "", margin + 8, yPos + 5, { maxWidth: contentWidth - 15 });
++    doc.text(lines, marginSide + 8, yPos + 5, { maxWidth: contentWidth - 8 });
+     
+-    yPos += lines.length * 6 + 4;
++    yPos += lines.length * 5 + 4;
+   });
+ 
+   yPos += 10;
+ 
+   // === RECOMMENDATIONS ===
+   checkNewPage(30);
++  
+   doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+-  doc.setFontSize(14);
++  doc.setFontSize(12);
+   doc.setFont("helvetica", "bold");
+-  doc.text("Prioritised Recommendations", margin, yPos);
+-  yPos += 8;
++  doc.text("Prioritised Recommendations", marginSide, yPos);
++  yPos += 10;
+ 
+   // Group recommendations by priority
+   const groupedRecs = {
+@@ -241,83 +396,113 @@ export async function generatePDFReport(data: PDFReportData): Promise<void> {
+ 
+   const priorityOrder: Array<"high" | "medium" | "low"> = ["high", "medium", "low"];
+   const priorityLabels: Record<string, string> = {
+-    high: "HIGH PRIORITY",
+-    medium: "MEDIUM PRIORITY",
+-    low: "LOW PRIORITY",
++    high: "HIGH",
++    medium: "MEDIUM",
++    low: "LOW",
+   };
+ 
+   priorityOrder.forEach(priority => {
+     const recs = groupedRecs[priority];
+     if (recs.length === 0) return;
+ 
+-    checkNewPage(20);
++    checkNewPage(25);
++    
++    // Priority badge (colored rectangle)
++    const badgeWidth = 18;
++    const badgeHeight = 6;
++    doc.setFillColor(PRIORITY_COLORS[priority][0], PRIORITY_COLORS[priority][1], PRIORITY_COLORS[priority][2]);
++    doc.rect(marginSide, yPos, badgeWidth, badgeHeight, "F");
+     
+-    // Priority header
+-    doc.setFillColor(...PRIORITY_COLORS[priority]);
+-    doc.roundedRect(margin, yPos, contentWidth, 8, 2, 2, "F");
++    // Badge text
+     doc.setTextColor(255, 255, 255);
+-    doc.setFontSize(10);
++    doc.setFontSize(8);
+     doc.setFont("helvetica", "bold");
+-    doc.text(priorityLabels[priority], margin + 3, yPos + 5.5);
++    doc.text(priorityLabels[priority], marginSide + badgeWidth / 2, yPos + 4.5, { align: "center" });
++    
++    // Priority label
++    doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++    doc.setFontSize(9);
++    doc.setFont("helvetica", "normal");
++    doc.text("PRIORITY", marginSide + badgeWidth + 5, yPos + 4.5);
++    
+     yPos += 12;
+ 
+     recs.forEach((rec, i) => {
+-      const lines = doc.splitTextToSize(rec.recommendation, contentWidth - 8);
+-      checkNewPage(lines.length * 6 + 10);
++      const lines = doc.splitTextToSize(rec.recommendation, contentWidth - 4);
++      checkNewPage(lines.length * 5 + 8);
+       
+       // Recommendation box
+       doc.setFillColor(...COLORS.cardBg);
+-      doc.roundedRect(margin, yPos, contentWidth, lines.length * 6 + 6, 2, 2, "F");
++      doc.roundedRect(marginSide, yPos, contentWidth, lines.length * 5 + 6, 2, 2, "F");
+       
++      // Number
++      doc.setTextColor(BRAND_GREEN_RGB[0], BRAND_GREEN_RGB[1], BRAND_GREEN_RGB[2]);
++      doc.setFontSize(10);
++      doc.setFont("helvetica", "bold");
++      doc.text(`${i + 1}.`, marginSide + 4, yPos + 6);
++      
++      // Text
+       doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+-      doc.setFontSize(9);
++      doc.setFontSize(10);
+       doc.setFont("helvetica", "normal");
+-      doc.text(lines, margin + 4, yPos + 5, { maxWidth: contentWidth - 8 });
++      doc.text(lines, marginSide + 12, yPos + 6, { maxWidth: contentWidth - 16 });
+       
+-      yPos += lines.length * 6 + 8;
++      yPos += lines.length * 5 + 8;
+     });
+ 
+-    yPos += 6;
++    yPos += 8;
+   });
+ 
+-  // === CONTACT SECTION ===
+-  checkNewPage(40);
+   yPos += 5;
+-  doc.setFillColor(...COLORS.darkBg);
+-  doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, "F");
+ 
+-  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  // === CONTACT SECTION ===
++  checkNewPage(50);
++  
++  // Contact card background
++  doc.setFillColor(...COLORS.darkBg);
++  doc.roundedRect(marginSide, yPos, contentWidth, 45, 3, 3, "F");
++  
++  // Brand accent line at top
++  doc.setDrawColor(BRAND_GREEN_RGB[0], BRAND_GREEN_RGB[1], BRAND_GREEN_RGB[2]);
++  doc.setLineWidth(1);
++  doc.line(marginSide, yPos, marginSide + contentWidth, yPos);
++  
++  // "Your next step" heading
++  doc.setTextColor(BRAND_GREEN_RGB[0], BRAND_GREEN_RGB[1], BRAND_GREEN_RGB[2]);
+   doc.setFontSize(12);
+   doc.setFont("helvetica", "bold");
+-  doc.text("Contact Tanosec Cybersecurity", margin + 5, yPos + 10);
+-
+-  doc.setTextColor(...COLORS.textMuted);
++  doc.text("Your Next Step", marginSide + 8, yPos + 12);
++  
++  // Contact details
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
+   doc.setFontSize(10);
+   doc.setFont("helvetica", "normal");
+-  doc.text("Telephone: +27 621 234 244", margin + 5, yPos + 18);
+-  doc.text("Email: support@tanosec.co.za", margin + 5, yPos + 24);
+-  doc.text("Book a consultation: calendly.com/tanosec", margin + 5, yPos + 30);
++  
++  const contactY = yPos + 22;
++  doc.text("Phone:", marginSide + 8, contactY);
++  doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++  doc.text("+27 621 234 244", marginSide + 35, contactY);
++  
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.text("Email:", marginSide + 8, contactY + 8);
++  doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++  doc.text("support@tanosec.co.za", marginSide + 35, contactY + 8);
++  
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.text("Calendly:", marginSide + 8, contactY + 16);
++  doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++  doc.text("calendly.com/tanosec", marginSide + 35, contactY + 16);
++  
++  doc.setTextColor(COLORS.textPrimary[0], COLORS.textPrimary[1], COLORS.textPrimary[2]);
++  doc.text("Website:", marginSide + 8, contactY + 24);
++  doc.setTextColor(COLORS.textMuted[0], COLORS.textMuted[1], COLORS.textMuted[2]);
++  doc.text("tanosec.co.za", marginSide + 35, contactY + 24);
+ 
+-  // === FOOTER ===
+-  // On every page
++  // === ADD FOOTERS TO ALL PAGES ===
+   const totalPages = doc.getNumberOfPages();
+   for (let i = 1; i <= totalPages; i++) {
+     doc.setPage(i);
+-    
+-    // Footer line
+-    doc.setDrawColor(...COLORS.border);
+-    doc.setLineWidth(0.5);
+-    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+-
+-    // Footer text
+-    doc.setTextColor(...COLORS.textMuted);
+-    doc.setFontSize(8);
+-    doc.setFont("helvetica", "normal");
+-    doc.text("Powered by Tanosec Cybersecurity", margin, pageHeight - 6);
+-    doc.text("Think Like a Hacker, Secure Like a Pro", pageWidth - margin, pageHeight - 6, { align: "right" });
+-    
+-    // Page number
+-    doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 6, { align: "center" });
++    addPageFooter(i, totalPages);
+   }
+ 
+   // Save the PDF
+-- 
+2.39.5
+
+
+From bfc8244ca102a3ea0321b1cf4b2244948750f972 Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 18:50:41 +0000
+Subject: [PATCH 8/9] fix: enrich Tanosec notifications with full assessment
+ data for lead follow-up
+
+---
+ src/app/page.tsx         | 116 +++++++++++++++++++-------------
+ src/lib/leadActions.ts   |   5 +-
+ src/lib/notifications.ts | 141 ++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 204 insertions(+), 58 deletions(-)
+
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index c9e8d5b..f00b748 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -36,7 +36,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+ import Logo from "@/components/logo";
+-import ShareMyScore from "@/components/share-my-score";
+ import BenchmarkCard from "@/components/benchmark-card";
+ import { Checkbox } from "@/components/ui/checkbox";
+ import {
+@@ -141,7 +140,6 @@ export default function ClarityByTanosecPage() {
+       }
+     } catch {}
+   }, []);
+-
+   // Save answers to sessionStorage whenever they change
+   useEffect(() => {
+     try {
+@@ -150,7 +148,6 @@ export default function ClarityByTanosecPage() {
+       }
+     } catch {}
+   }, [answers]);
+-
+   const router = useRouter();
+ 
+   const { toast } = useToast();
+@@ -225,7 +222,6 @@ export default function ClarityByTanosecPage() {
+         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+ 
+-
+       // Fire email report automatically — do not await, errors are handled gracefully
+       if (recommendations) {
+         const enrichedCategoryScores = Object.fromEntries(
+@@ -463,6 +459,17 @@ export default function ClarityByTanosecPage() {
+         .filter(([, s]) => s.count > 0)
+         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
++      const enrichedCategoryScores = Object.fromEntries(
++        Object.entries(categoryScores).map(([catId, s]) => [
++          catId,
++          {
++            name: questionCategories[catId]?.name ?? catId,
++            score: s.score,
++            maxScore: s.maxScore,
++            percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
++          },
++        ])
++      );
+       saveLeadCapture({
+         email,
+         newsletterOptIn,
+@@ -471,6 +478,9 @@ export default function ClarityByTanosecPage() {
+         sector: sector || undefined,
+         companySize: companySize || undefined,
+         worstCategory: worstCategoryName || undefined,
++        categoryScores: enrichedCategoryScores,
++        risks: recommendations.risks,
++        recommendations: recommendations.recommendations,
+       }).catch((err) => console.error("[leadCapture] Failed silently:", err));
+     }
+   }, [recommendations, email, newsletterOptIn, score, maxScore, categoryScores, sector, companySize]);
+@@ -500,13 +510,13 @@ export default function ClarityByTanosecPage() {
+                     <SelectValue placeholder="Select your industry" />
+                   </SelectTrigger>
+                   <SelectContent>
+-                    <SelectItem value="Legal & Compliance">Legal &amp; Compliance</SelectItem>
+-                    <SelectItem value="Healthcare & Medical">Healthcare &amp; Medical</SelectItem>
+-                    <SelectItem value="Finance & Accounting">Finance &amp; Accounting</SelectItem>
+-                    <SelectItem value="Retail & E-commerce">Retail &amp; E-commerce</SelectItem>
+-                    <SelectItem value="Construction & Engineering">Construction &amp; Engineering</SelectItem>
++                    <SelectItem value="Legal & Compliance">Legal & Compliance</SelectItem>
++                    <SelectItem value="Healthcare & Medical">Healthcare & Medical</SelectItem>
++                    <SelectItem value="Finance & Accounting">Finance & Accounting</SelectItem>
++                    <SelectItem value="Retail & E-commerce">Retail & E-commerce</SelectItem>
++                    <SelectItem value="Construction & Engineering">Construction & Engineering</SelectItem>
+                     <SelectItem value="Professional Services">Professional Services</SelectItem>
+-                    <SelectItem value="Hospitality & Tourism">Hospitality &amp; Tourism</SelectItem>
++                    <SelectItem value="Hospitality & Tourism">Hospitality & Tourism</SelectItem>
+                     <SelectItem value="Education">Education</SelectItem>
+                     <SelectItem value="Technology">Technology</SelectItem>
+                     <SelectItem value="Other">Other</SelectItem>
+@@ -538,7 +548,7 @@ export default function ClarityByTanosecPage() {
+             </Button>
+           </CardContent>
+           <CardFooter className="text-xs text-muted-foreground justify-center">
+-            <p>Takes approximately 2 minutes to complete. Industry &amp; size fields are optional.</p>
++            <p>Takes approximately 2 minutes to complete. Industry & size fields are optional.</p>
+           </CardFooter>
+         </Card>
+       );
+@@ -555,14 +565,14 @@ export default function ClarityByTanosecPage() {
+             {/* Shield container with progressive fill */}
+             <svg
+               viewBox="0 0 100 120"
+-              className="w-full h-full drop-shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+-              style={{ filter: 'drop-shadow(0 0 12px rgba(34,197,94,0.4))' }}
++              className="w-full h-full drop-shadow-[0_0_20px_rgba(190,240,81,0.3)]"
++              style={{ filter: 'drop-shadow(0 0 12px rgba(190,240,81,0.4))' }}
+             >
+               {/* Shield outline */}
+               <path
+                 d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
+                 fill="none"
+-                stroke="rgba(34,197,94,0.3)"
++                stroke="rgba(190,240,81,0.3)"
+                 strokeWidth="2"
+                 className="animate-pulse"
+               />
+@@ -573,13 +583,13 @@ export default function ClarityByTanosecPage() {
+                   <path d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z" />
+                 </clipPath>
+                 <linearGradient id="shieldFill" x1="0%" y1="100%" x2="0%" y2="0%">
+-                  <stop offset="0%" stopColor="rgba(34,197,94,0.8)" />
+-                  <stop offset="100%" stopColor="rgba(34,197,94,0.2)" />
++                  <stop offset="0%" stopColor="rgba(190,240,81,0.8)" />
++                  <stop offset="100%" stopColor="rgba(190,240,81,0.2)" />
+                 </linearGradient>
+                 <linearGradient id="scanLine" x1="0%" y1="0%" x2="0%" y2="100%">
+-                  <stop offset="0%" stopColor="rgba(34,197,94,0)" />
+-                  <stop offset="50%" stopColor="rgba(34,197,94,1)" />
+-                  <stop offset="100%" stopColor="rgba(34,197,94,0)" />
++                  <stop offset="0%" stopColor="rgba(190,240,81,0)" />
++                  <stop offset="50%" stopColor="rgba(190,240,81,1)" />
++                  <stop offset="100%" stopColor="rgba(190,240,81,0)" />
+                 </linearGradient>
+               </defs>
+               
+@@ -588,7 +598,7 @@ export default function ClarityByTanosecPage() {
+                 {/* Base shield fill */}
+                 <path
+                   d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
+-                  fill="rgba(34,197,94,0.1)"
++                  fill="rgba(190,240,81,0.1)"
+                 />
+                 
+                 {/* Progressive fill bar */}
+@@ -612,9 +622,9 @@ export default function ClarityByTanosecPage() {
+                 />
+                 
+                 {/* Data stream dots */}
+-                <circle cx="30" cy="50" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-1" />
+-                <circle cx="50" cy="70" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-2" />
+-                <circle cx="70" cy="40" r="2" fill="rgba(34,197,94,0.6)" className="animate-data-stream-3" />
++                <circle cx="30" cy="50" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-1" />
++                <circle cx="50" cy="70" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-2" />
++                <circle cx="70" cy="40" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-3" />
+               </g>
+               
+               {/* Shield icon overlay */}
+@@ -622,14 +632,14 @@ export default function ClarityByTanosecPage() {
+                 <path
+                   d="M0 -18 L12 -10 L12 2 C12 14 6 22 0 26 C-6 22 -12 14 -12 2 L-12 -10 Z"
+                   fill="none"
+-                  stroke="rgba(34,197,94,0.8)"
++                  stroke="rgba(190,240,81,0.8)"
+                   strokeWidth="2"
+                   className="animate-pulse"
+                 />
+                 <path
+                   d="M0 -10 L0 16 M-8 4 L0 12 L8 4"
+                   fill="none"
+-                  stroke="rgba(34,197,94,0.8)"
++                  stroke="rgba(190,240,81,0.8)"
+                   strokeWidth="2"
+                   strokeLinecap="round"
+                   strokeLinejoin="round"
+@@ -646,7 +656,7 @@ export default function ClarityByTanosecPage() {
+                 key={index}
+                 className={`h-2 w-2 rounded-full transition-all duration-500 ${
+                   index === loadingMsgIndex
+-                    ? 'bg-primary w-6 shadow-[0_0_10px_rgba(34,197,94,0.6)]'
++                    ? 'bg-primary w-6 shadow-[0_0_10px_rgba(190,240,81,0.6)]'
+                     : index < loadingMsgIndex
+                     ? 'bg-primary/50'
+                     : 'bg-primary/20'
+@@ -732,7 +742,6 @@ export default function ClarityByTanosecPage() {
+       const question = questions[currentQuestionIndex];
+       const category = questionCategories[question.category];
+       const CategoryIcon = categoryIcons[question.category] || Shield;
+-
+       const currentOptions = (() => {
+         if (sector && question.industryOptions && question.industryOptions[sector]) {
+           return question.industryOptions[sector];
+@@ -830,7 +839,17 @@ export default function ClarityByTanosecPage() {
+           .filter(([, s]) => s.count > 0)
+           .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+         const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : undefined;
+-
++        const enrichedCategoryScores = Object.fromEntries(
++          Object.entries(categoryScores).map(([catId, s]) => [
++            catId,
++            {
++              name: questionCategories[catId]?.name ?? catId,
++              score: s.score,
++              maxScore: s.maxScore,
++              percentage: s.maxScore > 0 ? (s.score / s.maxScore) * 100 : 0,
++            },
++          ])
++        );
+         saveLeadCapture({
+           email,
+           newsletterOptIn,
+@@ -839,6 +858,9 @@ export default function ClarityByTanosecPage() {
+           sector: sector || undefined,
+           companySize: companySize || undefined,
+           worstCategory: worstCategoryName || undefined,
++          categoryScores: enrichedCategoryScores,
++          risks: recommendations.risks,
++          recommendations: recommendations.recommendations,
+         }).catch((err) => console.error('[leadCapture] Failed silently:', err));
+ 
+         // Fire email report automatically — do not await, errors are handled gracefully
+@@ -876,10 +898,10 @@ export default function ClarityByTanosecPage() {
+           <div className="flex flex-col items-center text-center">
+             <Logo size="small" />
+             <h1 className="text-3xl font-headline font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+-              Get Your Full Security Report
++              Your Security Preview
+             </h1>
+             <p className="text-base text-muted-foreground mt-3 max-w-md mx-auto leading-relaxed">
+-              A Tanosec cybersecurity expert will review your results and send you a personalised follow-up within one business day.
++              Here's a preview of your results. Enter your email to unlock your full security report with actionable recommendations.
+             </p>
+           </div>
+ 
+@@ -911,11 +933,14 @@ export default function ClarityByTanosecPage() {
+               {/* Locked Teaser Section */}
+               <div className="relative rounded-xl border border-border/40 bg-background/20 p-6 overflow-hidden">
+                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/95 backdrop-blur-[4px] z-10 flex flex-col items-center justify-center p-4">
+-                  <div className="p-4 bg-primary/10 rounded-full border border-primary/25 mb-3 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
++                  <div className="p-4 bg-primary/10 rounded-full border border-primary/25 mb-3 shadow-[0_0_15px_rgba(190,240,81,0.2)]">
+                     <Lock className="h-8 w-8 text-primary animate-pulse" />
+                   </div>
+                   <p className="font-headline font-bold text-xl text-foreground text-center">
+-                    Get your full security report — enter your email below to send your results.
++                    Unlock your full security report
++                  </p>
++                  <p className="text-sm text-muted-foreground text-center mt-2">
++                    Enter your email to receive your complete analysis with AI-powered recommendations.
+                   </p>
+                 </div>
+ 
+@@ -991,7 +1016,7 @@ export default function ClarityByTanosecPage() {
+                 <Button
+                   type="submit"
+                   size="lg"
+-                  className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
++                  className="w-full font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 h-12 shadow-[0_0_15px_rgba(190,240,81,0.2)]"
+                 >
+                   Send Me My Results
+                 </Button>
+@@ -1008,8 +1033,8 @@ export default function ClarityByTanosecPage() {
+                   className="underline hover:text-foreground transition-colors"
+                 >
+                   Privacy Policy
+-                </a>{" "}
+-                (https://tanosec.co.za/privacy-policy-2/). POPIA compliant. No spam, ever.
++                </a>
++                . POPIA compliant. No spam, ever.
+               </p>
+               <p className="text-[10px] text-muted-foreground/80">
+                 support@tanosec.co.za · +27 621 234 244
+@@ -1043,7 +1068,6 @@ export default function ClarityByTanosecPage() {
+         .sort(([, a], [, b]) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+ 
+       const worstCategoryName = worstCategory ? questionCategories[worstCategory[0]].name : null;
+-
+       return (
+         <div className="w-full max-w-5xl space-y-8 animate-fade-in">
+           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+@@ -1078,16 +1102,12 @@ export default function ClarityByTanosecPage() {
+                 <p className="text-muted-foreground pt-2 print-text">
+                   This score reflects your cybersecurity posture based on your answers.
+                 </p>
+-                {/* Share inside the score card */}
+-                <div className="pt-2 no-print">
+-                  <p className="text-sm text-muted-foreground mb-2">Share your Results.</p>
+-                  <div className="flex flex-col items-center gap-3">
+-                    <ShareMyScore scorePercent={Math.round(scorePercentage)} />
+-                    <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="border-primary/50 hover:bg-primary/10 text-primary w-full justify-center flex gap-2">
+-                      <Download className="h-4 w-4" />
+-                      Download PDF Report
+-                    </Button>
+-                  </div>
++                {/* Download PDF only - share feature removed for security */}
++                <div className="pt-4 no-print">
++                  <Button onClick={handleDownloadPDF} variant="outline" size="sm" className="border-primary/50 hover:bg-primary/10 text-primary w-full justify-center flex gap-2">
++                    <Download className="h-4 w-4" />
++                    Download PDF Report
++                  </Button>
+                 </div>
+               </CardContent>
+             </Card>
+@@ -1249,7 +1269,7 @@ export default function ClarityByTanosecPage() {
+             <CardContent className="relative z-10 flex flex-col items-center gap-6 pt-4">
+               <div className="flex flex-col sm:flex-row justify-center gap-4 w-full">
+                 <a href="https://calendly.com/tanosec" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
+-                  <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow">
++                  <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-lg h-14 px-8 shadow-[0_0_20px_rgba(190,240,81,0.3)] hover:shadow-[0_0_30px_rgba(190,240,81,0.5)] transition-shadow">
+                     Book a Free Consultation
+                   </Button>
+                 </a>
+@@ -1274,7 +1294,7 @@ export default function ClarityByTanosecPage() {
+   };
+ 
+   return (
+-    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body bg-dot-pattern">
++    <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body bg-dot-pattern bg-subtle-animation bg-particles">
+       {renderContent()}
+     </div>
+   );
+diff --git a/src/lib/leadActions.ts b/src/lib/leadActions.ts
+index c5de629..4c804ff 100644
+--- a/src/lib/leadActions.ts
++++ b/src/lib/leadActions.ts
+@@ -10,6 +10,9 @@ export async function saveLeadCapture(data: {
+   sector?: string;
+   companySize?: string;
+   worstCategory?: string;
++  categoryScores?: Record<string, { name: string; score: number; maxScore: number; percentage: number }>;
++  risks?: string[];
++  recommendations?: { recommendation: string; priority: string }[];
+ }): Promise<{ success: boolean; error?: string }> {
+   try {
+     // Basic email validation if provided
+@@ -89,7 +92,6 @@ export async function emailReport(
+   try {
+     const apiKey = process.env.RESEND_API_KEY;
+     const fromEmail = process.env.NOTIFICATION_EMAIL_FROM ?? 'Clarity by Tanosec <clarity@tanosec.co.za>';
+-
+     if (!apiKey) {
+       console.warn('[Clarity] RESEND_API_KEY not set — skipping user email report');
+       return { success: true };
+@@ -129,7 +131,6 @@ export async function emailReport(
+             <span style="color:#fca5a5;font-size:14px;line-height:1.5;">${r}</span>
+           </div>`).join('')
+       : '<p style="color:#888;font-size:14px;">No significant risks identified.</p>';
+-
+     // Build strengths list
+     const strengthsList = payload.strengths.length > 0
+       ? payload.strengths.map(s => `
+diff --git a/src/lib/notifications.ts b/src/lib/notifications.ts
+index 0f12b2c..a371c2d 100644
+--- a/src/lib/notifications.ts
++++ b/src/lib/notifications.ts
+@@ -1,5 +1,12 @@
+ 'use server';
+ 
++export interface CategoryScore {
++  name: string;
++  score: number;
++  maxScore: number;
++  percentage: number;
++}
++
+ export interface LeadNotificationPayload {
+   email?: string;
+   newsletterOptIn?: boolean;
+@@ -9,6 +16,9 @@ export interface LeadNotificationPayload {
+   companySize?: string;
+   worstCategory?: string;
+   timestamp: string;
++  categoryScores?: Record<string, CategoryScore>;
++  risks?: string[];
++  recommendations?: { recommendation: string; priority: string }[];
+ }
+ 
+ async function sendWhatsAppNotification(payload: LeadNotificationPayload): Promise<void> {
+@@ -18,19 +28,57 @@ async function sendWhatsAppNotification(payload: LeadNotificationPayload): Promi
+     console.warn('[Clarity] WhatsApp env vars not set — skipping');
+     return;
+   }
++
+   const emoji = payload.score >= 75 ? '🟢' : payload.score >= 50 ? '🟡' : payload.score >= 25 ? '🟠' : '🔴';
++
++  // Build category breakdown section
++  let categoryBreakdown = '';
++  if (payload.categoryScores) {
++    const lines = Object.entries(payload.categoryScores)
++      .filter(([, s]) => s.maxScore > 0)
++      .map(([catId, s]) => {
++        const shortName = s.name
++          .replace(' & Authentication', '')
++          .replace(' & Backup', '')
++          .replace(' & Training', '')
++          .replace(' & Recovery', '')
++          .replace(' & Risk', '')
++          .replace(' & ', ' ');
++        return `${shortName}: ${s.score}/${s.maxScore} (${Math.round(s.percentage)}%)`;
++      });
++    categoryBreakdown = lines.join('\n');
++  }
++
++  // Build top 3 risks
++  const topRisks = (payload.risks || []).slice(0, 3);
++  const risksSection = topRisks.length > 0
++    ? `--- TOP RISKS ---\n${topRisks.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
++    : '';
++
++  // Build top 3 recommendations with priority
++  const topRecs = (payload.recommendations || []).slice(0, 3);
++  const recsSection = topRecs.length > 0
++    ? `--- RECOMMENDATIONS ---\n${topRecs.map(r => `{${r.priority.toUpperCase()}} ${r.recommendation}`).join('\n')}`
++    : '';
++
+   const message = [
+-    `🦞 *New Clarity Assessment*`,
++    `🛡️ NEW CLARITY ASSESSMENT`,
++    ``,
++    `📊 Score: ${payload.score}% — ${payload.scoreLabel}`,
++    payload.email ? `📧 ${payload.email}` : `📧 No email provided`,
++    payload.sector ? `🏢 ${payload.sector}` : `🏢 Sector not specified`,
++    payload.companySize ? `👥 ${payload.companySize}` : `👥 Size not specified`,
++    ``,
++    `--- CATEGORY BREAKDOWN ---`,
++    categoryBreakdown,
++    payload.worstCategory ? `⚠️ Biggest gap: ${payload.worstCategory}` : '',
+     ``,
+-    `${emoji} *Score:* ${payload.score}% — ${payload.scoreLabel}`,
+-    payload.email ? `📧 *Email:* ${payload.email}` : `📧 *Email:* Not provided`,
+-    payload.sector ? `🏢 *Sector:* ${payload.sector}` : null,
+-    payload.companySize ? `👥 *Size:* ${payload.companySize}` : null,
+-    payload.worstCategory ? `⚠️ *Biggest gap:* ${payload.worstCategory}` : null,
+-    payload.newsletterOptIn ? `📰 *Newsletter:* Yes` : null,
++    risksSection,
++    recsSection ? `\n${recsSection}` : '',
+     ``,
+     `🕒 ${payload.timestamp}`,
+   ].filter(Boolean).join('\n');
++
+   try {
+     const response = await fetch('https://gate.whapi.cloud/messages/text', {
+       method: 'POST',
+@@ -58,15 +106,69 @@ async function sendEmailNotification(payload: LeadNotificationPayload): Promise<
+     console.warn('[Clarity] Resend env vars not set — skipping');
+     return;
+   }
++
+   const scoreColour = payload.score >= 75 ? '#22c55e' : payload.score >= 50 ? '#eab308' : payload.score >= 25 ? '#f97316' : '#ef4444';
+   const emoji = payload.score >= 75 ? '🟢' : payload.score >= 50 ? '🟡' : payload.score >= 25 ? '🟠' : '🔴';
++
++  // Build category breakdown rows
++  const categoryRows = payload.categoryScores
++    ? Object.entries(payload.categoryScores)
++        .filter(([, s]) => s.maxScore > 0)
++        .map(([catId, s]) => {
++          const barColor = s.percentage >= 75 ? '#22c55e' : s.percentage >= 50 ? '#eab308' : s.percentage >= 25 ? '#f97316' : '#ef4444';
++          const barWidth = Math.round(s.percentage);
++          return `
++            <tr>
++              <td style="padding:10px 0;border-bottom:1px solid #222;font-size:13px;color:#888;vertical-align:middle;">
++                ${s.name}
++              </td>
++              <td style="padding:10px 0;border-bottom:1px solid #222;vertical-align:middle;">
++                <div style="background:#222;border-radius:4px;height:8px;width:160px;overflow:hidden;">
++                  <div style="background:${barColor};height:8px;width:${barWidth}%;border-radius:4px;"></div>
++                </div>
++              </td>
++              <td style="padding:10px 0 10px 16px;border-bottom:1px solid #222;font-size:14px;color:${barColor};font-weight:700;text-align:right;white-space:nowrap;">
++                ${s.score}/${s.maxScore} (${Math.round(s.percentage)}%)
++              </td>
++            </tr>`;
++        }).join('')
++    : '';
++
++  // Build top 3 risks
++  const topRisks = (payload.risks || []).slice(0, 3);
++  const risksList = topRisks.length > 0
++    ? topRisks.map(r => `
++        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#1c0a0a;border:1px solid #450a0a;border-radius:8px;margin-bottom:10px;">
++          <span style="color:#ef4444;font-size:16px;line-height:1;padding-top:2px;">⚠️</span>
++          <span style="color:#fca5a5;font-size:14px;line-height:1.5;">${r}</span>
++        </div>`).join('')
++    : '<p style="color:#888;font-size:14px;">No significant risks identified.</p>';
++
++  // Build recommendations with priority badges
++  const topRecs = (payload.recommendations || []).slice(0, 3);
++  const recsList = topRecs.map(rec => {
++    const isHigh = rec.priority === 'high';
++    const isMedium = rec.priority === 'medium';
++    const badgeBg = isHigh ? '#450a0a' : isMedium ? '#451a03' : '#052e16';
++    const badgeColor = isHigh ? '#ef4444' : isMedium ? '#f97316' : '#22c55e';
++    const badgeBorder = isHigh ? '#7f1d1d' : isMedium ? '#7c2d12' : '#14532d';
++    const label = rec.priority.toUpperCase();
++    return `
++      <div style="display:flex;align-items:flex-start;gap:14px;padding:16px;background:#111;border:1px solid #222;border-radius:10px;margin-bottom:12px;">
++        <div style="background:${badgeBg};border:1px solid ${badgeBorder};border-radius:6px;padding:4px 10px;white-space:nowrap;">
++          <span style="color:${badgeColor};font-size:11px;font-weight:700;letter-spacing:0.05em;">${label}</span>
++        </div>
++        <p style="color:#e5e5e5;font-size:14px;line-height:1.6;margin:0;">${rec.recommendation}</p>
++      </div>`;
++  }).join('');
++
+   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0f0f0f;font-family:Arial,sans-serif;color:#e5e5e5;">
+   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+     <tr><td>
+       <table width="600" align="center" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:12px;border:1px solid #2a2a2a;max-width:600px;width:100%;">
+         <tr><td style="padding:24px 32px;border-bottom:1px solid #2a2a2a;">
+           <p style="margin:0;font-size:13px;color:#666;text-transform:uppercase;letter-spacing:0.08em;">Tanosec Cybersecurity</p>
+-          <h1 style="margin:4px 0 0;font-size:22px;color:#fff;">🦞 New Clarity Lead</h1>
++          <h1 style="margin:4px 0 0;font-size:22px;color:#fff;">🛡️ New Clarity Lead</h1>
+         </td></tr>
+         <tr><td style="padding:28px 32px 0;">
+           <table width="100%" cellpadding="0" cellspacing="0">
+@@ -86,6 +188,29 @@ async function sendEmailNotification(payload: LeadNotificationPayload): Promise<
+             <tr><td style="padding:12px 0;font-size:13px;color:#888;">Submitted</td><td style="padding:12px 0;font-size:14px;color:#e5e5e5;">${payload.timestamp}</td></tr>
+           </table>
+         </td></tr>
++        ${categoryRows ? `
++        <tr><td style="padding:0 32px 8px;">
++          <h2 style="margin:0;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Category Breakdown</h2>
++        </td></tr>
++        <tr><td style="padding:0 32px 24px;">
++          <table width="100%" cellpadding="0" cellspacing="0" style="background:#161616;border-radius:12px;border:1px solid #222;overflow:hidden;">
++            ${categoryRows}
++          </table>
++        </td></tr>` : ''}
++        ${topRisks.length > 0 ? `
++        <tr><td style="padding:0 32px 8px;">
++          <h2 style="margin:0;font-size:13px;color:#ef4444;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">⚠️ Top Risks</h2>
++        </td></tr>
++        <tr><td style="padding:0 32px 24px;">
++          ${risksList}
++        </td></tr>` : ''}
++        ${topRecs.length > 0 ? `
++        <tr><td style="padding:0 32px 8px;">
++          <h2 style="margin:0;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">📋 Top Recommendations</h2>
++        </td></tr>
++        <tr><td style="padding:0 32px 28px;">
++          ${recsList}
++        </td></tr>` : ''}
+         <tr><td style="padding:0 32px 28px;"><p style="margin:0;font-size:12px;color:#444;text-align:center;">Clarity by Tanosec · clarity.tanosec.co.za</p></td></tr>
+       </table>
+     </td></tr>
+-- 
+2.39.5
+
+
+From 5a7fe61c9e46d7c497437b01838e5e8ac092c263 Mon Sep 17 00:00:00 2001
+From: generator <agent@sandbox>
+Date: Wed, 24 Jun 2026 18:53:09 +0000
+Subject: [PATCH 9/9] feat: remove share feature, polish UI consistency, add
+ subtle background animation
+
+---
+ src/app/globals.css | 60 ++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/src/app/globals.css b/src/app/globals.css
+index a854216..fcf5fbc 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -7,10 +7,9 @@
+ @tailwind components;
+ @tailwind utilities;
+ 
+-
+ @layer base {
+   :root {
+-    /* Premium Dark Theme */
++    /* Premium Dark Theme with brand color #bef051 */
+     --background: 240 5.9% 4.1%; /* zinc-950 #09090b */
+     --foreground: 0 0% 98%;
+     
+@@ -20,8 +19,8 @@
+     --popover: 240 5.9% 7%;
+     --popover-foreground: 0 0% 98%;
+     
+-    --primary: 142 71% 45%; /* cyber-green #22c55e */
+-    --primary-foreground: 0 0% 100%; /* white text on primary */
++    --primary: 82 84% 63%; /* brand lime green #bef051 */
++    --primary-foreground: 0 0% 0%; /* black text on primary for contrast */
+     
+     --secondary: 240 3.7% 15.9%; /* zinc-800 */
+     --secondary-foreground: 0 0% 98%;
+@@ -29,18 +28,18 @@
+     --muted: 240 3.7% 15.9%;
+     --muted-foreground: 240 5% 64.9%; /* zinc-400 */
+     
+-    --accent: 142 71% 45%; /* cyber-green */
+-    --accent-foreground: 0 0% 100%;
++    --accent: 82 84% 63%; /* brand lime green */
++    --accent-foreground: 0 0% 0%;
+     
+     --destructive: 0 62.8% 30.6%;
+     --destructive-foreground: 0 0% 98%;
+     
+     --border: 240 3.7% 15.9%;
+     --input: 240 3.7% 15.9%;
+-    --ring: 142 71% 45%;
++    --ring: 82 84% 63%;
+     
+     /* Charts */
+-    --chart-1: 142 71% 45%;
++    --chart-1: 82 84% 63%;
+     --chart-2: 173 58% 39%;
+     --chart-3: 197 37% 24%;
+     --chart-4: 43 74% 66%;
+@@ -52,11 +51,54 @@
+ 
+ @layer utilities {
+   .bg-dot-pattern {
+-    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
++    background-image: radial-gradient(rgba(190, 240, 81, 0.03) 1px, transparent 1px);
+     background-size: 24px 24px;
+   }
+ 
++  /* Subtle animated background gradient */
++  .bg-subtle-animation {
++    background: 
++      radial-gradient(ellipse at 20% 80%, rgba(190, 240, 81, 0.03) 0%, transparent 50%),
++      radial-gradient(ellipse at 80% 20%, rgba(190, 240, 81, 0.02) 0%, transparent 50%),
++      radial-gradient(ellipse at 50% 50%, rgba(190, 240, 81, 0.015) 0%, transparent 70%);
++    animation: subtle-gradient-shift 20s ease-in-out infinite;
++  }
++
++  /* Floating particles animation */
++  .bg-particles {
++    background-image: 
++      radial-gradient(circle at 25% 25%, rgba(190, 240, 81, 0.04) 0%, transparent 2%),
++      radial-gradient(circle at 75% 75%, rgba(190, 240, 81, 0.03) 0%, transparent 1.5%),
++      radial-gradient(circle at 50% 10%, rgba(190, 240, 81, 0.035) 0%, transparent 1%),
++      radial-gradient(circle at 10% 60%, rgba(190, 240, 81, 0.025) 0%, transparent 1.2%),
++      radial-gradient(circle at 90% 40%, rgba(190, 240, 81, 0.03) 0%, transparent 1.8%);
++    background-size: 100% 100%;
++    animation: particles-drift 30s linear infinite;
++  }
++}
+ 
++@keyframes subtle-gradient-shift {
++  0%, 100% {
++    background-position: 0% 0%, 100% 100%, 50% 50%;
++  }
++  25% {
++    background-position: 100% 0%, 0% 100%, 75% 25%;
++  }
++  50% {
++    background-position: 50% 50%, 50% 50%, 50% 75%;
++  }
++  75% {
++    background-position: 100% 100%, 0% 0%, 25% 75%;
++  }
++}
++
++@keyframes particles-drift {
++  0% {
++    background-position: 0% 0%, 100% 100%, 50% 0%, 0% 50%, 100% 50%;
++  }
++  100% {
++    background-position: 0% 100%, 100% 0%, 50% 100%, 0% 150%, 100% 150%;
++  }
+ }
+ 
+ @layer base {
+-- 
+2.39.5
+

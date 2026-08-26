@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useCallback, useRef, useReducer } from "react";
 import {
   Download,
   Shield,
@@ -36,7 +35,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
-import BenchmarkCard from "@/components/benchmark-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -54,6 +52,11 @@ import { cn } from "@/lib/utils";
 import { generatePDFReport, type PDFReportData } from "@/lib/pdfReport";
 import { useToast } from "@/hooks/use-toast";
 import { add } from "date-fns";
+import { clarityFlowReducer, initialClarityFlowState } from './state';
+import { screenComponents } from './screens';
+import { AssessmentProgress } from './AssessmentProgress';
+import { calculateLegacyScore } from '@/lib/legacy/scoring';
+import { CLARITY_DRAFT_KEY,parseDraft,serialiseDraft } from './draft';
 
 type Answers = Record<string, string>;
 
@@ -117,8 +120,8 @@ async function getRecommendationsWithRetry(
   }
 }
 
-export default function ClarityByTanosecPage() {
-  const [step, setStep] = useState(0); // 0=start, 1-n=questions, n+1=loading, n+2=email, n+3=results
+export function ClarityApp() {
+  const [flow, dispatchFlow] = useReducer(clarityFlowReducer, initialClarityFlowState);
   const [answers, setAnswers] = useState<Answers>({});
   const [email, setEmail] = useState("");
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
@@ -127,37 +130,31 @@ export default function ClarityByTanosecPage() {
   const [recommendations, setRecommendations] =
     useState<GenerateSecurityRecommendationsOutput | null>(null);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-  const [isPreviewResults, setIsPreviewResults] = useState(false);
   const notificationSentRef = useRef(false);
 
   // Restore answers from sessionStorage on mount
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem('clarity_answers_draft');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setAnswers(parsed);
-      }
+      setAnswers(parseDraft(sessionStorage.getItem(CLARITY_DRAFT_KEY)));
     } catch {}
   }, []);
   // Save answers to sessionStorage whenever they change
   useEffect(() => {
     try {
-      if (Object.keys(answers).length > 0) {
-        sessionStorage.setItem('clarity_answers_draft', JSON.stringify(answers));
-      }
+      const draft=serialiseDraft(answers);
+      if(draft)sessionStorage.setItem(CLARITY_DRAFT_KEY,draft);
     } catch {}
   }, [answers]);
-  const router = useRouter();
-
   const { toast } = useToast();
   const totalQuestions = questions.length;
-  const isStart = step === 0;
-  const isAssessment = step > 0 && step <= totalQuestions;
-  const isLoading = step === totalQuestions + 1;
-  const isEmailCapture = step === totalQuestions + 2 && !isPreviewResults;
-  const isResults = step === totalQuestions + 3;
-  const currentQuestionIndex = step - 1;
+  const isStart = flow.screen === 'landing';
+  const isAssessment = flow.screen === 'questions';
+  const isLoading = flow.screen === 'processing';
+  const isEmailCapture = flow.screen === 'email';
+  const isPreviewResults = flow.screen === 'preview';
+  const isResults = flow.screen === 'results';
+  const currentQuestionIndex = flow.questionIndex;
+  const questionNumber = currentQuestionIndex + 1;
 
   const loadingMessages = [
     "Analysing your responses...",
@@ -180,22 +177,22 @@ export default function ClarityByTanosecPage() {
   };
 
   const handleNext = () => {
-    if (step < totalQuestions) {
-      setStep(step + 1);
+    if (currentQuestionIndex < totalQuestions - 1) {
+      dispatchFlow({type:'NEXT_QUESTION',totalQuestions});
     } else {
       handleSubmit();
     }
   };
 
   const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
+    if (currentQuestionIndex > 0) {
+      dispatchFlow({type:'PREVIOUS_QUESTION'});
     }
   };
 
   const handleSubmit = useCallback(() => {
-    setStep(totalQuestions + 1);
-  }, [totalQuestions]);
+    dispatchFlow({type:'PROCESS'});
+  }, []);
 
   const handleShowReport = async () => {
     if (email) {
@@ -248,24 +245,23 @@ export default function ClarityByTanosecPage() {
         }).catch((err) => console.error('[emailReport] Failed silently:', err));
       }
 
-      setStep(totalQuestions + 3); // Go straight to full results
+      dispatchFlow({type:'SHOW_RESULTS'}); // Go straight to full results
     } else {
-      setIsPreviewResults(true); // Proceed to preview/gate results page
+      dispatchFlow({type:'SHOW_PREVIEW'}); // Proceed to preview/gate results page
     }
   };
-  
+
   const handleRestart = () => {
-    setStep(0);
+    dispatchFlow({type:'RESTART'});
     setAnswers({});
     setRecommendations(null);
     setEmail("");
     setNewsletterOptIn(false);
     setSector('');
     setCompanySize('');
-    setIsPreviewResults(false);
-    sessionStorage.removeItem('clarity_answers_draft');
+    sessionStorage.removeItem(CLARITY_DRAFT_KEY);
   };
-  
+
   const handleRemindMe = () => {
     const reassessmentDate = add(new Date(), { months: 3 });
 
@@ -352,44 +348,7 @@ export default function ClarityByTanosecPage() {
   };
 
 
-  const { score, maxScore, categoryScores } = useMemo(() => {
-    let score = 0;
-    let maxScore = 0;
-    const categoryScores: Record<
-      string,
-      { score: number; maxScore: number; count: number }
-    > = {};
-
-    Object.keys(questionCategories).forEach((catId) => {
-      categoryScores[catId] = { score: 0, maxScore: 0, count: 0 };
-    });
-
-    questions.forEach((q) => {
-      const currentOptions = (() => {
-        if (sector && q.industryOptions && q.industryOptions[sector]) {
-          return q.industryOptions[sector];
-        }
-        return q.options;
-      })();
-
-      const maxOptionScore = Math.max(...currentOptions.map((opt) => opt.score));
-      maxScore += maxOptionScore;
-      categoryScores[q.category].maxScore += maxOptionScore;
-      categoryScores[q.category].count += 1;
-
-      const selectedAnswerText = answers[q.id];
-      if (selectedAnswerText) {
-        const selectedOption = currentOptions.find(
-          (opt) => opt.text === selectedAnswerText
-        );
-        if (selectedOption) {
-          score += selectedOption.score;
-          categoryScores[q.category].score += selectedOption.score;
-        }
-      }
-    });
-    return { score, maxScore, categoryScores };
-  }, [answers, sector]);
+  const { score, maxScore, categoryScores } = useMemo(() => calculateLegacyScore(answers,sector), [answers, sector]);
 
   useEffect(() => {
     if (isLoading) {
@@ -423,7 +382,7 @@ export default function ClarityByTanosecPage() {
       })
         .then((result) => {
           setRecommendations(result);
-          setStep(totalQuestions + 2);
+          dispatchFlow({type:'SHOW_EMAIL'});
         })
         .catch((error) => {
           console.error("Failed to get recommendations:", error);
@@ -438,7 +397,7 @@ export default function ClarityByTanosecPage() {
             description: error instanceof Error ? error.message : "Showing a fallback report so you can continue.",
           });
           setRecommendations(FALLBACK_RECOMMENDATIONS);
-          setStep(totalQuestions + 2);
+          dispatchFlow({type:'SHOW_EMAIL'});
         });
     }
   }, [isLoading, answers, totalQuestions, toast, score, maxScore, categoryScores, sector, companySize]);
@@ -542,7 +501,7 @@ export default function ClarityByTanosecPage() {
             <Button
               size="lg"
               className="font-bold text-lg w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={() => setStep(1)}
+              onClick={() => dispatchFlow({type:'START'})}
             >
               Start Assessment
             </Button>
@@ -561,7 +520,7 @@ export default function ClarityByTanosecPage() {
           <div className="relative flex items-center justify-center h-32 w-32">
             {/* Outer glow ring */}
             <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse" />
-            
+
             {/* Shield container with progressive fill */}
             <svg
               viewBox="0 0 100 120"
@@ -576,7 +535,7 @@ export default function ClarityByTanosecPage() {
                 strokeWidth="2"
                 className="animate-pulse"
               />
-              
+
               {/* Progressive fill mask */}
               <defs>
                 <clipPath id="shieldClip">
@@ -592,7 +551,7 @@ export default function ClarityByTanosecPage() {
                   <stop offset="100%" stopColor="rgba(190,240,81,0)" />
                 </linearGradient>
               </defs>
-              
+
               {/* Filled shield background */}
               <g clipPath="url(#shieldClip)">
                 {/* Base shield fill */}
@@ -600,7 +559,7 @@ export default function ClarityByTanosecPage() {
                   d="M50 5 L90 20 L90 55 C90 85 70 105 50 115 C30 105 10 85 10 55 L10 20 Z"
                   fill="rgba(190,240,81,0.1)"
                 />
-                
+
                 {/* Progressive fill bar */}
                 <rect
                   x="10"
@@ -610,7 +569,7 @@ export default function ClarityByTanosecPage() {
                   fill="url(#shieldFill)"
                   className="animate-shield-fill"
                 />
-                
+
                 {/* Scanning line */}
                 <rect
                   x="10"
@@ -620,13 +579,13 @@ export default function ClarityByTanosecPage() {
                   fill="url(#scanLine)"
                   className="animate-scan"
                 />
-                
+
                 {/* Data stream dots */}
                 <circle cx="30" cy="50" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-1" />
                 <circle cx="50" cy="70" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-2" />
                 <circle cx="70" cy="40" r="2" fill="rgba(190,240,81,0.6)" className="animate-data-stream-3" />
               </g>
-              
+
               {/* Shield icon overlay */}
               <g transform="translate(50, 58)">
                 <path
@@ -648,7 +607,7 @@ export default function ClarityByTanosecPage() {
               </g>
             </svg>
           </div>
-          
+
           {/* Step indicators */}
           <div className="flex items-center gap-3">
             {loadingMessages.map((_, index) => (
@@ -664,7 +623,7 @@ export default function ClarityByTanosecPage() {
               />
             ))}
           </div>
-          
+
           {/* Rotating text message */}
           <h2 className="text-2xl font-headline transition-opacity duration-500 ease-in-out text-foreground">
             {loadingMessages[loadingMsgIndex]}
@@ -672,7 +631,7 @@ export default function ClarityByTanosecPage() {
         </div>
       );
     }
-    
+
     if (isEmailCapture) {
       return (
         <Card className="w-full max-w-lg text-center shadow-2xl animate-fade-in border-border/50 bg-card/80 backdrop-blur-sm">
@@ -710,7 +669,7 @@ export default function ClarityByTanosecPage() {
                   Keep me updated on South African cyber threats
                 </label>
               </div>
-              
+
               <div className="flex flex-col space-y-3 pt-4">
                 <Button
                   size="lg"
@@ -761,10 +720,10 @@ export default function ClarityByTanosecPage() {
                 <span className="font-semibold">{category.name}</span>
               </div>
               <p className="text-xs text-muted-foreground font-medium">
-                Question {step} of {totalQuestions}
+                Question {questionNumber} of {totalQuestions}
               </p>
             </div>
-            <Progress value={(step / totalQuestions) * 100} className="h-1 bg-muted [&>div]:bg-primary transition-all duration-300" />
+            <AssessmentProgress current={questionNumber} total={totalQuestions}/>
           </div>
 
           <Card className="shadow-2xl animate-fade-in border-border/50 bg-card/80 backdrop-blur-sm">
@@ -793,7 +752,7 @@ export default function ClarityByTanosecPage() {
               <Button
                 variant="ghost"
                 onClick={handleBack}
-                disabled={step <= 1}
+                disabled={currentQuestionIndex === 0}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <ChevronLeft className="mr-1 h-4 w-4" /> Back
@@ -803,7 +762,7 @@ export default function ClarityByTanosecPage() {
                 disabled={!answers[question.id]}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-24"
               >
-                {step === totalQuestions ? "Finish" : "Next"}
+                {currentQuestionIndex === totalQuestions - 1 ? "Finish" : "Next"}
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
             </CardFooter>
@@ -821,7 +780,7 @@ export default function ClarityByTanosecPage() {
         if (scorePercentage < 85) return { text: "Low Risk", color: "text-green-400", border: "border-green-400/30", desc: "Good security hygiene. Focus on continuous improvement." };
         return { text: "Strong Posture", color: "text-emerald-400", border: "border-emerald-400/30", desc: "Excellent security practices. Keep it up and stay current." };
       };
-      
+
       const interpretation = getScoreInterpretation();
 
       const handlePreviewSubmit = async (e: React.FormEvent) => {
@@ -889,8 +848,7 @@ export default function ClarityByTanosecPage() {
           }).catch((err) => console.error('[emailReport] Failed silently:', err));
         }
 
-        setIsPreviewResults(false);
-        setStep(totalQuestions + 3); // Go to results
+        dispatchFlow({type:'SHOW_RESULTS'}); // Go to results
       };
 
       return (
@@ -1054,7 +1012,7 @@ export default function ClarityByTanosecPage() {
         if (scorePercentage < 85) return { text: "Low Risk", color: "text-green-400", desc: "Good security hygiene. Focus on continuous improvement." };
         return { text: "Strong Posture", color: "text-emerald-400", desc: "Excellent security practices. Keep it up and stay current." };
       };
-      
+
       const interpretation = getScoreInterpretation();
 
       const prioritizedRecs = {
@@ -1084,7 +1042,6 @@ export default function ClarityByTanosecPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
             {/* Benchmark Comparison Card */}
             <div className="lg:col-span-3">
-              <BenchmarkCard userScore={scorePercentage} sector={sector} />
             </div>
 
             <Card className="lg:col-span-1 print-card border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
@@ -1147,8 +1104,8 @@ export default function ClarityByTanosecPage() {
             </Card>
           </div>
 
-          
-          
+
+
           <Card className="print-card page-break border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
             <CardHeader className="print-card-header pb-4">
               <CardTitle className="text-3xl flex items-center gap-3 print-card-title font-headline">
@@ -1201,7 +1158,7 @@ export default function ClarityByTanosecPage() {
                   <TabsTrigger value="medium" className="data-[state=active]:bg-card data-[state=active]:text-foreground text-base">Medium Priority</TabsTrigger>
                   <TabsTrigger value="low" className="data-[state=active]:bg-card data-[state=active]:text-foreground text-base">Low Priority</TabsTrigger>
                 </TabsList>
-                
+
                 <h3 className="hidden print-recommendation-title">High Priority Recommendations</h3>
                 <TabsContent value="high" className="space-y-4 pt-6 print-tabs-content">
                   {prioritizedRecs.high.length > 0 ? (
@@ -1213,7 +1170,7 @@ export default function ClarityByTanosecPage() {
                     ))
                   ) : <p className="text-muted-foreground text-center py-8 text-lg bg-background/30 rounded-lg border border-border/50">No high priority recommendations. Great job!</p>}
                 </TabsContent>
-                
+
                  <h3 className="hidden print-recommendation-title">Medium Priority Recommendations</h3>
                 <TabsContent value="medium" className="space-y-4 pt-6 print-tabs-content">
                   {prioritizedRecs.medium.length > 0 ? (
@@ -1240,7 +1197,7 @@ export default function ClarityByTanosecPage() {
               </Tabs>
             </CardContent>
           </Card>
-          
+
           <Card className="print-card page-break border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
             <CardHeader className="print-card-header">
               <CardTitle className="text-2xl print-card-title font-headline">Contact Tanosec Cybersecurity</CardTitle>
@@ -1256,7 +1213,7 @@ export default function ClarityByTanosecPage() {
             <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent/10 opacity-50"></div>
             <CardHeader className="relative z-10 text-center pb-4">
               <CardTitle className="text-3xl md:text-4xl font-headline font-bold text-foreground">
-                {worstCategoryName 
+                {worstCategoryName
                   ? <span className="text-primary">{worstCategoryName}</span>
                   : `Security`} is your biggest gap.
               </CardTitle>
@@ -1295,7 +1252,7 @@ export default function ClarityByTanosecPage() {
 
   return (
     <div role="main" className="flex min-h-svh w-full flex-col items-center justify-start md:justify-center p-4 md:p-8 pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-24 font-body bg-dot-pattern bg-subtle-animation bg-particles">
-      {renderContent()}
+      {(() => { const ActiveScreen=screenComponents[flow.screen]; return <ActiveScreen>{renderContent()}</ActiveScreen>; })()}
     </div>
   );
 }

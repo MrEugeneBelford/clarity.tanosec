@@ -6,3 +6,4 @@ export * from './findings';
 export * from './rateLimit';
 export * from './explanations';
 export * from './assessmentProcessor';
+export * from './actions';

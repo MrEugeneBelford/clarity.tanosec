@@ -1,5 +1,5 @@
-import { ClarityApp } from '@/components/clarity/ClarityApp';
+import { ClarityV2App } from '@/components/clarity/ClarityV2App';
 
 export default function HomePage() {
-  return <ClarityApp />;
+  return <ClarityV2App />;
 }

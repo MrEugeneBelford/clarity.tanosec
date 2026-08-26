@@ -13,7 +13,9 @@ export async function callGemini(systemPrompt: string, userPrompt: string): Prom
         systemInstruction: systemPrompt,
         generationConfig: { temperature: 0.7, maxOutputTokens: 2000, responseMimeType: 'application/json' },
       });
-      const result = await model.generateContent(userPrompt);
+      // Keep the provider call inside the hosting request budget so Clarity can
+      // still return its deterministic explanation when Gemini is slow.
+      const result = await model.generateContent(userPrompt, { timeout: 5_000 });
       
       // Check for safety filter blocks
       const promptFeedback = result.response.promptFeedback;

@@ -1,0 +1,2 @@
+import type{DisplayFinding}from '@/lib/v2/assessmentProcessor';
+export function StrengthCard({finding}:{finding:DisplayFinding}){return <article className="rounded-2xl border border-primary/25 bg-primary/5 p-5 sm:p-6"><p className="text-xs font-semibold uppercase tracking-wider text-primary">Genuine strength</p><h3 className="mt-2 text-xl font-headline font-semibold">{finding.title}</h3><p className="mt-3 leading-7 text-foreground/80">{finding.explanation}</p></article>;}

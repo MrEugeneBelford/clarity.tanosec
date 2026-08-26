@@ -1,0 +1,4 @@
+import Logo from '@/components/logo';
+import {Button} from '@/components/ui/button';
+import {RotateCcw} from 'lucide-react';
+export function SnapshotHeader({summary,onRestart}:{summary:string;onRestart:()=>void}){return <header className="flex flex-col gap-5 border-b border-border/60 pb-8 sm:flex-row sm:items-end sm:justify-between"><div><Logo size="small"/><p className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary">Your Clarity Snapshot</p><h1 className="mt-2 max-w-2xl text-4xl font-headline font-semibold tracking-tight sm:text-5xl">What stands out for your business</h1><p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">{summary}</p></div><Button variant="ghost" className="self-start sm:self-auto" onClick={onRestart}><RotateCcw className="mr-2 h-4 w-4"/>Start over</Button></header>;}

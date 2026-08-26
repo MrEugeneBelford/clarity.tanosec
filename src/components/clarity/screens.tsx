@@ -1,0 +1,10 @@
+import type { PropsWithChildren } from 'react';
+import type { ClarityScreen } from './state';
+const createScreen=(name:ClarityScreen)=>function Screen({children}:PropsWithChildren){return <section className="contents" data-clarity-screen={name}>{children}</section>;};
+export const LandingScreen=createScreen('landing');
+export const QuestionScreen=createScreen('questions');
+export const ProcessingScreen=createScreen('processing');
+export const EmailCaptureScreen=createScreen('email');
+export const PreviewResultsScreen=createScreen('preview');
+export const ResultsScreen=createScreen('results');
+export const screenComponents:Record<ClarityScreen,ReturnType<typeof createScreen>>={landing:LandingScreen,questions:QuestionScreen,processing:ProcessingScreen,email:EmailCaptureScreen,preview:PreviewResultsScreen,results:ResultsScreen};

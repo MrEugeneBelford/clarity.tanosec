@@ -1,0 +1,5 @@
+import { questions,questionCategories } from '../questions';
+export type LegacyAnswers=Record<string,string>;
+export interface LegacyCategoryScore { score:number;maxScore:number;count:number }
+export interface LegacyScoreResult { score:number;maxScore:number;categoryScores:Record<string,LegacyCategoryScore> }
+export function calculateLegacyScore(answers:LegacyAnswers,sector=''):LegacyScoreResult { let score=0,maxScore=0; const categoryScores:Record<string,LegacyCategoryScore>={}; Object.keys(questionCategories).forEach(id=>{categoryScores[id]={score:0,maxScore:0,count:0};}); questions.forEach(question=>{ const options=sector&&question.industryOptions?.[sector]?question.industryOptions[sector]:question.options; const maximum=Math.max(...options.map(option=>option.score)); maxScore+=maximum; categoryScores[question.category].maxScore+=maximum; categoryScores[question.category].count+=1; const selected=options.find(option=>option.text===answers[question.id]); if(selected){score+=selected.score;categoryScores[question.category].score+=selected.score;} }); return {score,maxScore,categoryScores}; }

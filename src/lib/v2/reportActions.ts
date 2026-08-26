@@ -26,7 +26,7 @@ async function sendWhatsApp(text: string): Promise<boolean> {
   return response.ok;
 }
 
-export async function submitSnapshotDelivery(input: { email: string; newsletterOptIn: boolean; snapshot: unknown }): Promise<SnapshotDeliveryResult> {
+export async function submitSnapshotDelivery(input: { email: string; snapshot: unknown }): Promise<SnapshotDeliveryResult> {
   const limit=deliveryLimiter.check(await requestKey());
   if(!limit.allowed)return { success:false,userEmailSent:false,internalEmailSent:false,whatsappSent:false,error:'Too many delivery requests were made from this connection. Please wait before trying again.' };
   const email = input.email.trim().toLowerCase();
@@ -35,7 +35,7 @@ export async function submitSnapshotDelivery(input: { email: string; newsletterO
     const snapshot = toPublicSnapshot(input.snapshot);
     const [userEmailSent, internalEmailSent, whatsappSent] = await Promise.all([
       sendResend(email, 'Your Clarity Snapshot', buildUserEmailHtml(snapshot)),
-      process.env.NOTIFICATION_EMAIL_TO ? sendResend(process.env.NOTIFICATION_EMAIL_TO, `New Clarity assessment — ${snapshot.businessContext.sector}`, buildInternalEmailHtml(snapshot, email, input.newsletterOptIn)) : Promise.resolve(false),
+      process.env.NOTIFICATION_EMAIL_TO ? sendResend(process.env.NOTIFICATION_EMAIL_TO, `New Clarity assessment — ${snapshot.businessContext.sector}`, buildInternalEmailHtml(snapshot, email)) : Promise.resolve(false),
       sendWhatsApp(buildWhatsAppText(snapshot, email)),
     ]);
     return { success: true, userEmailSent, internalEmailSent, whatsappSent };

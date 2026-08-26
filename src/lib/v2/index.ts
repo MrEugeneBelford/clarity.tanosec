@@ -4,3 +4,5 @@ export * from './context';
 export * from './rules';
 export * from './findings';
 export * from './rateLimit';
+export * from './explanations';
+export * from './assessmentProcessor';

@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Clarity by Tanosec",
-  description: "AI-powered cybersecurity insights for your business.",
+  description: "A contextual cybersecurity self-assessment for South African SMEs.",
   icons: {
     icon: "/icon.png",
     shortcut: "/icon.png",

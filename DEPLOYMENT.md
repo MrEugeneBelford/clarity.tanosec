@@ -38,6 +38,19 @@ All values are server-side secrets. Do not prefix them with `NEXT_PUBLIC_` and d
 5. Confirm email and WhatsApp delivery only when their environment variables are configured.
 6. Promote the reviewed deploy to production.
 
+## Release hardening checks
+
+- Verify the assessment remains useful with the Gemini key temporarily removed.
+- Submit malformed and repeated requests; confirm validation and rate-limit messages are calm and reveal no internals.
+- Confirm Resend and Whapi time out cleanly without blocking the on-screen snapshot.
+- Test the full flow at 375px and 1440px, using keyboard-only navigation at least once.
+- Open the email in Gmail and Outlook and download the PDF in each supported browser.
+- Confirm Netlify response headers include CSP, HSTS, `nosniff`, frame denial, referrer policy, and permissions policy.
+- Review production logs for provider status only; emails, answers, findings, and generated explanations must not appear in logs.
+- Confirm no report content is written to localStorage, sessionStorage, a database, or analytics.
+
+Rate limits are intentionally best-effort in-process guards. Netlify or an edge/WAF rate limit should also be enabled before a high-traffic campaign because serverless instances do not share memory.
+
 ## Local verification
 
 ```bash

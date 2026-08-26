@@ -32,4 +32,4 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.netlify.app; connect-src 'self' https://api.resend.com https://gate.whapi.cloud https://generativelanguage.googleapis.com https://calendly.com https://*.netlify.app; frame-ancestors 'none'; font-src 'self' data:; object-src 'none';"
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.netlify.app https://tanosec.co.za; connect-src 'self' https://*.netlify.app; frame-ancestors 'none'; form-action 'self'; font-src 'self' data:; object-src 'none'; upgrade-insecure-requests;"

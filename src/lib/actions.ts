@@ -24,12 +24,12 @@ export async function getRecommendations(
     
     // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes('Groq API key')) {
-        throw new Error("Groq API key is not configured. Please check your environment variables.");
+      if (error.message.includes('Gemini API key')) {
+        throw new Error("Gemini API key is not configured. Please check your environment variables.");
       } else if (error.message.includes('Failed to parse AI response')) {
         throw new Error("AI response format was invalid. Please try again.");
-      } else if (error.message.includes('Groq API error')) {
-        throw new Error("Groq API error. Please check your API key and try again.");
+      } else if (error.message.includes('Gemini API error')) {
+        throw new Error("Gemini API error. Please check your API key and try again.");
       }
     }
     

@@ -1,91 +1,60 @@
-# Netlify Deployment Guide
+# Netlify deployment
 
-This application is configured for deployment on Netlify.
+Clarity is a Next.js 15 application deployed from GitHub to Netlify. The active application uses Next.js server actions for AI, email, and internal notifications; there are no standalone legacy Netlify functions.
 
 ## Prerequisites
 
-- A Netlify account
-- Node.js 20+ (Netlify will use this automatically)
-- Groq API key for AI functionality
+- Node.js 20
+- npm 10
+- A Netlify site connected to this repository
+- A Google Generative AI key if Gemini explanations are enabled
+- Resend and Whapi credentials for the notification features you intend to enable
 
-## Deployment Steps
+## Build settings
 
-### 1. Connect to Netlify
+`netlify.toml` defines the `npm run build` command, `.next` publish directory, runtime versions, caching, and security headers. Do not add a second set of Netlify UI build settings unless intentionally overriding the repository configuration.
 
-1. Go to [netlify.com](https://netlify.com) and sign in
-2. Click "Add new site" → "Import an existing project"
-3. Connect your Git repository (GitHub, GitLab, etc.)
+## Environment variables
 
-### 2. Configure Build Settings
+Configure only the integrations in use:
 
-Netlify will automatically detect the build settings from `netlify.toml`:
-
-- **Build command**: `npm run build`
-- **Publish directory**: `.next`
-- **Node.js version**: 20
-
-### 3. Set Environment Variables
-
-In your Netlify dashboard, go to Site settings → Environment variables and add:
-
-```
-GROQ_API_KEY=your_groq_api_key_here
-NEXT_PUBLIC_APP_URL=https://your-app-name.netlify.app
+```text
+GOOGLE_GENERATIVE_AI_API_KEY=
+RESEND_API_KEY=
+NOTIFICATION_EMAIL_FROM=
+NOTIFICATION_EMAIL_TO=
+WHAPI_TOKEN=
+WHAPI_TO_NUMBER=
 ```
 
-**Getting a Groq API Key:**
-1. Go to [groq.com](https://groq.com)
-2. Sign up for an account
-3. Navigate to your API keys section
-4. Create a new API key
-5. Copy the key and add it to your Netlify environment variables
+All values are server-side secrets. Do not prefix them with `NEXT_PUBLIC_` and do not commit `.env.local`.
 
-### 4. Deploy
+## Deploy
 
-1. Push your changes to your Git repository
-2. Netlify will automatically build and deploy your site
-3. Your site will be available at `https://your-app-name.netlify.app`
+1. Push the reviewed branch to GitHub.
+2. Open the Netlify deploy preview and confirm the build succeeds.
+3. Run the assessment once without optional contact details and once with email consent.
+4. Confirm the Gemini fallback remains usable when the AI key is absent or the provider is unavailable.
+5. Confirm email and WhatsApp delivery only when their environment variables are configured.
+6. Promote the reviewed deploy to production.
 
-## Local Development
+## Local verification
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm test
+npm run typecheck
+npm run build
 ```
 
-The application will be available at `http://localhost:9002`
+The development server runs at `http://localhost:9002` with `npm run dev`.
 
 ## Troubleshooting
 
-### Common Issues
+- **Build failure:** reproduce with `npm run build` using Node.js 20 and inspect the first error.
+- **Gemini unavailable:** verify `GOOGLE_GENERATIVE_AI_API_KEY`; the application should still return deterministic fallback content.
+- **Email unavailable:** verify the Resend key and that `NOTIFICATION_EMAIL_FROM` is a verified sender.
+- **WhatsApp unavailable:** verify the Whapi token and destination number.
+- **Content blocked in production:** compare the requested host with the Content Security Policy in `netlify.toml`.
 
-- **If you encounter build errors**, check that your Node.js version is 18+ locally
-- **Ensure all environment variables are set in Netlify**
-- **Check the build logs in Netlify for any specific errors**
-- **Verify your Groq API key is valid and has sufficient credits**
-
-### Testing Groq Integration
-
-After deployment, you can test if Groq is working correctly by visiting:
-```
-https://your-app-name.netlify.app/api/test-assessment
-```
-
-This will return:
-- ✅ **Success**: If Groq is configured correctly
-- ❌ **Error**: If there are configuration issues
-
-### Debugging Steps
-
-1. **Check Environment Variables**: Ensure `GROQ_API_KEY` is set in Netlify
-2. **Test API Key**: Visit the test endpoint above
-3. **Check Netlify Logs**: Look at function logs in Netlify dashboard
-4. **Verify Groq Account**: Ensure your Groq account has access
-5. **Check API Limits**: Groq has rate limits and usage quotas
-
-### Error Messages
-
-- **"Groq API key is not configured"**: Set the `GROQ_API_KEY` environment variable
-- **"Groq API error"**: Check your API key validity and account status
-- **"Failed to parse AI response"**: The AI response format was invalid (rare)
-- **"Could not generate recommendations"**: General error, check logs for details
+There are deliberately no public debug endpoints for provider or assessment testing.

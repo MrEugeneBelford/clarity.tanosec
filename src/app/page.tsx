@@ -36,7 +36,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Logo from "@/components/logo";
-import BenchmarkCard from "@/components/benchmark-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -1084,7 +1083,6 @@ export default function ClarityByTanosecPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 avoid-break">
             {/* Benchmark Comparison Card */}
             <div className="lg:col-span-3">
-              <BenchmarkCard userScore={scorePercentage} sector={sector} />
             </div>
 
             <Card className="lg:col-span-1 print-card border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">

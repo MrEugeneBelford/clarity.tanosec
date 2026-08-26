@@ -16,6 +16,7 @@ describe('processAssessment trust boundary', () => {
     expect(snapshot.findings.length).toBeGreaterThan(0);
     expect(snapshot.findings.length).toBeLessThanOrEqual(3);
     expect(snapshot.generatedAt).toBe('2026-08-26T12:00:00.000Z');
+    expect(snapshot.explanationDiagnostics.source).toBe('deterministic_fallback');
     const serialised=JSON.stringify(snapshot);
     expect(serialised).not.toMatch(/overallScore|percentage|benchmark|riskBand/);
   });
@@ -37,6 +38,7 @@ describe('processAssessment trust boundary', () => {
     expect(JSON.stringify(received)).not.toContain('restore_test');
     expect(JSON.stringify(received)).not.toContain('never');
     expect(snapshot.closingNote).toBe('A calm closing note.');
+    expect(snapshot.explanationDiagnostics.source).toBe('gemini');
   });
 
   it('rejects hallucinated finding IDs and uses deterministic fallback', async () => {
@@ -95,6 +97,8 @@ describe('representative business personas', () => {
   it('is stable for repeated identical submissions', async () => {
     const first=await processAssessment({answers:baseline},{explain:fallbackProvider,now:fixedNow});
     const second=await processAssessment({answers:baseline},{explain:fallbackProvider,now:fixedNow});
-    expect(first).toEqual(second);
+    const {explanationDiagnostics:_firstDiagnostics,...firstReasoning}=first;
+    const {explanationDiagnostics:_secondDiagnostics,...secondReasoning}=second;
+    expect(firstReasoning).toEqual(secondReasoning);
   });
 });

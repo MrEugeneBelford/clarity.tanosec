@@ -5,6 +5,7 @@ import { deriveContext, type DerivedContext } from './context';
 import { runRules, type FindingPriority } from './rules';
 import { resolveActions, selectFindings, type ActionTemplate } from './findings';
 import { buildExplanationInput, deterministicExplanation, geminiExplanationProvider, validateExplanationOutput, type ExplanationProvider } from './explanations';
+import {createCircuitBreaker,executeReliableExplanation,explanationCircuitBreaker,type CircuitBreaker,type ExplanationDiagnostics,type ReliabilityOptions} from './aiReliability';
 
 export interface EvidencePanel { findingId: string; statements: readonly string[] }
 export interface DisplayFinding { id: string; priority: FindingPriority; title: string; explanation: string }
@@ -15,6 +16,7 @@ export interface ClaritySnapshot {
   evidencePanels: readonly EvidencePanel[];
   nextActions: readonly ActionTemplate[];
   closingNote: string;
+  explanationDiagnostics: ExplanationDiagnostics;
   generatedAt: string;
 }
 
@@ -23,6 +25,8 @@ export interface AssessmentProcessorOptions {
   now?: () => Date;
   rateLimit?: (key: string) => { allowed: boolean; retryAfterMs: number };
   rateLimitKey?: string;
+  explanationReliability?: ReliabilityOptions;
+  circuitBreaker?: CircuitBreaker;
 }
 
 function validateCompleteAnswers(answers: AnswerMap): void {
@@ -54,12 +58,12 @@ export async function processAssessment(submission: unknown, options: Assessment
     impactPotential: context.breach_impact_potential,
   });
   let explanation = deterministicExplanation(selected);
-  try {
-    const providerOutput = await (options.explain || geminiExplanationProvider)(explanationInput);
-    explanation = validateExplanationOutput(providerOutput, selected);
-  } catch {
-    // The deterministic result remains fully usable when the optional explanation layer fails.
-  }
+  const provider=options.explain||geminiExplanationProvider;
+  const breaker=options.circuitBreaker||(options.explain?createCircuitBreaker():explanationCircuitBreaker);
+  const reliable=await executeReliableExplanation(async()=>validateExplanationOutput(await provider(explanationInput),selected),breaker,options.explanationReliability);
+  if(reliable.value)explanation=reliable.value;
+  const log={source:reliable.diagnostics.source,attempts:reliable.diagnostics.attempts,latencyMs:reliable.diagnostics.latencyMs,failureCategory:reliable.diagnostics.failureCategory};
+  if(reliable.diagnostics.source==='gemini')console.info('[Clarity v2] Explanation completed',log);else console.warn('[Clarity v2] Deterministic explanation fallback',log);
   const explanationById = new Map(explanation.explanations.map(item => [item.findingId, item.explanation]));
   return {
     version: '2.0',
@@ -68,6 +72,7 @@ export async function processAssessment(submission: unknown, options: Assessment
     evidencePanels: selected.map(item => ({ findingId: item.id, statements: item.evidence.map(value => value.statement) })),
     nextActions: resolveActions(candidates),
     closingNote: explanation.closingNote,
+    explanationDiagnostics: reliable.diagnostics,
     generatedAt: (options.now || (() => new Date()))().toISOString(),
   };
 }
